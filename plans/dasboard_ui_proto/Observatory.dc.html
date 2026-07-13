@@ -1,0 +1,1882 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --bg2:#fafafa; --bg3:#f2f2f2; --line:#e8e8e8; --line2:#f0f0f0;
+    --tx:#0a0a0a; --tx2:#6b6b6b; --tx3:#a3a3a3; --inv:#0a0a0a; --invtx:#ffffff;
+    --err:#dc2626; --warn:#b45309; --ok:#15803d; --errbg:rgba(220,38,38,.07); --warnbg:rgba(180,83,9,.08);
+  }
+  [data-theme='dark']{
+    --bg:#000000; --bg2:#0a0a0a; --bg3:#141414; --line:#1f1f1f; --line2:#161616;
+    --tx:#f5f5f5; --tx2:#8a8a8a; --tx3:#525252; --inv:#f5f5f5; --invtx:#0a0a0a;
+    --err:#f87171; --warn:#d9a154; --ok:#4ade80; --errbg:rgba(248,113,113,.09); --warnbg:rgba(217,161,84,.10);
+  }
+  [data-mono='1']{ --err:var(--tx); --warn:var(--tx2); --ok:var(--tx2); --errbg:var(--bg3); --warnbg:var(--bg3); }
+  html,body{margin:0;padding:0;height:100%;background:#000}
+  body{font-family:Geist,system-ui,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--tx);text-decoration:none}
+  a:hover{color:var(--tx2)}
+  ::selection{background:var(--inv);color:var(--invtx)}
+  *{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+  ::-webkit-scrollbar{width:8px;height:8px}
+  ::-webkit-scrollbar-thumb{background:var(--line);border-radius:4px}
+  input,textarea,button{font-family:inherit;color:inherit}
+  [data-nav]{color:var(--tx2)}
+  [data-nav]:hover{color:var(--tx);background:var(--bg2)}
+  [data-nav][data-on='1']{color:var(--tx);background:var(--bg3)}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+  @keyframes growX{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+  @keyframes slideIn{from{transform:translateX(24px);opacity:0}to{transform:none;opacity:1}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" data-mono="{{ monoAttr }}" style="display:flex;width:100%;height:100vh;background:var(--bg);color:var(--tx);font-size:13px;overflow:hidden;transition:background .25s ease,color .25s ease">
+
+  <!-- ============ SIDEBAR ============ -->
+  <div style="width:196px;flex:none;display:flex;flex-direction:column;border-right:1px solid var(--line);background:var(--bg)">
+    <div style="display:flex;align-items:center;gap:8px;height:47px;padding:0 14px;border-bottom:1px solid var(--line)">
+      <div style="width:16px;height:16px;background:var(--inv);border-radius:3px;display:flex;align-items:center;justify-content:center">
+        <div style="width:6px;height:6px;background:var(--invtx);border-radius:1px"></div>
+      </div>
+      <div style="font-weight:600;font-size:13px;letter-spacing:-.01em">meridian</div>
+      <div style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--tx3);border:1px solid var(--line);border-radius:3px;padding:1px 4px">prod</div>
+    </div>
+    <div style="padding:8px 6px;display:flex;flex-direction:column;gap:1px">
+      <sc-for list="{{ navItems }}" as="it" hint-placeholder-count="5">
+        <div data-nav data-on="{{ it.on }}" onClick="{{ it.click }}" style="display:flex;align-items:center;gap:9px;padding:6px 9px;border-radius:5px;cursor:pointer;font-size:12.5px;font-weight:500;transition:background .12s ease,color .12s ease">
+          <svg width="14" height="14" viewBox="0 0 16 16" style="flex:none"><path d="{{ it.d }}" fill="currentColor" fill-rule="evenodd"></path></svg>
+          <span>{{ it.label }}</span>
+          <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">{{ it.badge }}</span>
+        </div>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;padding:10px 14px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:7px;font-size:11px;color:var(--tx2)">
+        <div style="width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2.4s ease infinite"></div>
+        <span>All systems nominal</span>
+      </div>
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">v0.9.2 · us-east</div>
+        <div onClick="{{ toggleTheme }}" style="cursor:pointer;color:var(--tx2);display:flex;padding:3px;border-radius:4px" style-hover="color:var(--tx);background:var(--bg3)" title="Toggle theme">
+          <svg width="13" height="13" viewBox="0 0 16 16"><path d="M8 1a7 7 0 100 14A7 7 0 018 1zm0 1.5v11a5.5 5.5 0 010-11z" fill="currentColor"></path></svg>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ MAIN COLUMN ============ -->
+  <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+
+    <!-- topbar -->
+    <div style="height:47px;flex:none;display:flex;align-items:center;gap:14px;padding:0 16px;border-bottom:1px solid var(--line)">
+      <div style="display:flex;align-items:baseline;gap:8px;min-width:0">
+        <span style="font-weight:600;font-size:13px;letter-spacing:-.01em;white-space:nowrap">{{ crumb }}</span>
+        <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ crumbSub }}</span>
+      </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;width:clamp(150px,26vw,280px);height:28px;padding:0 9px;border:1px solid var(--line);border-radius:6px;background:var(--bg2);color:var(--tx3);cursor:text;overflow:hidden" style-hover="border-color:var(--tx3)">
+          <svg width="12" height="12" viewBox="0 0 16 16"><path d="M7 2a5 5 0 013.9 8.1l3 3-1 1-3-3A5 5 0 117 2zm0 1.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7z" fill="currentColor"></path></svg>
+          <span style="font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">Search traces, logs, users…</span>
+          <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;border:1px solid var(--line);border-radius:3px;padding:0 4px;background:var(--bg)">⌘K</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--tx2);border:1px solid var(--line);border-radius:6px;height:28px;padding:0 10px">
+          <div style="width:5px;height:5px;border-radius:50%;background:var(--ok);animation:pulse 1.6s ease infinite"></div>
+          <span style="font-family:'Geist Mono',monospace;font-size:10.5px">live</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OVERVIEW ============ -->
+    <sc-if value="{{ isOverview }}" hint-placeholder-val="{{ true }}">
+      <div data-screen-label="Overview" style="flex:1;overflow-y:auto;animation:fadeUp .25s ease">
+
+        <!-- KPI strip -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;border-bottom:1px solid var(--line)">
+          <div style="padding:16px 18px 14px;border-right:1px solid var(--line)">
+            <div style="font-size:11px;color:var(--tx2);font-weight:500">Requests / min</div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:6px">
+              <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;font-family:'Geist Mono',monospace">24.1k</div>
+              <svg width="88" height="28" viewBox="0 0 88 28" style="flex:none;color:var(--tx)"><polyline points="0,20 8,18 16,21 24,15 32,17 40,12 48,14 56,9 64,12 72,7 80,9 88,4" fill="none" stroke="currentColor" stroke-width="1.4"></polyline></svg>
+            </div>
+            <div style="font-size:10.5px;color:var(--tx3);margin-top:4px;font-family:'Geist Mono',monospace">▲ 12% vs prev hour</div>
+          </div>
+          <div style="padding:16px 18px 14px;border-right:1px solid var(--line)">
+            <div style="font-size:11px;color:var(--tx2);font-weight:500">p95 latency</div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:6px">
+              <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;font-family:'Geist Mono',monospace">184ms</div>
+              <svg width="88" height="28" viewBox="0 0 88 28" style="flex:none;color:var(--tx2)"><polyline points="0,10 8,12 16,9 24,14 32,11 40,16 48,13 56,18 64,15 72,17 80,14 88,16" fill="none" stroke="currentColor" stroke-width="1.4"></polyline></svg>
+            </div>
+            <div style="font-size:10.5px;color:var(--tx3);margin-top:4px;font-family:'Geist Mono',monospace">▼ 8ms vs prev hour</div>
+          </div>
+          <div style="padding:16px 18px 14px;border-right:1px solid var(--line)">
+            <div style="font-size:11px;color:var(--tx2);font-weight:500">Error rate</div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:6px">
+              <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;font-family:'Geist Mono',monospace;color:var(--err)">0.42%</div>
+              <svg width="88" height="28" viewBox="0 0 88 28" style="flex:none;color:var(--err)"><polyline points="0,22 8,21 16,23 24,20 32,22 40,18 48,21 56,12 64,16 72,14 80,19 88,17" fill="none" stroke="currentColor" stroke-width="1.4"></polyline></svg>
+            </div>
+            <div style="font-size:10.5px;color:var(--tx3);margin-top:4px;font-family:'Geist Mono',monospace">101 events · 3 unresolved</div>
+          </div>
+          <div style="padding:16px 18px 14px">
+            <div style="font-size:11px;color:var(--tx2);font-weight:500">Heap (workers avg)</div>
+            <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:10px;margin-top:6px">
+              <div style="font-size:22px;font-weight:600;letter-spacing:-.02em;font-family:'Geist Mono',monospace">128MB</div>
+              <svg width="88" height="28" viewBox="0 0 88 28" style="flex:none;color:var(--tx2)"><polyline points="0,18 12,12 14,20 26,13 28,21 42,11 44,19 58,12 60,22 74,14 76,21 88,15" fill="none" stroke="currentColor" stroke-width="1.4"></polyline></svg>
+            </div>
+            <div style="font-size:10.5px;color:var(--tx3);margin-top:4px;font-family:'Geist Mono',monospace">GC avg 1.1ms · 6 workers</div>
+          </div>
+        </div>
+
+        <!-- main grid -->
+        <div style="display:grid;grid-template-columns:1.6fr 1fr;min-height:0">
+          <div style="border-right:1px solid var(--line)">
+
+            <!-- throughput chart -->
+            <div style="padding:16px 18px;border-bottom:1px solid var(--line)">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+                <div style="font-size:12px;font-weight:600">Throughput · last 60 min</div>
+                <div style="display:flex;gap:12px;font-size:10.5px;color:var(--tx2);font-family:'Geist Mono',monospace">
+                  <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.85;border-radius:1px"></span>2xx</span>
+                  <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--err);border-radius:1px"></span>5xx</span>
+                </div>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:2px;height:72px">
+                <sc-for list="{{ bars }}" as="b" hint-placeholder-count="40">
+                  <div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;gap:1px;height:100%" title="{{ b.tip }}">
+                    <div style="width:100%;background:var(--err);height:{{ b.eh }}%;border-radius:1px 1px 0 0"></div>
+                    <div style="width:100%;background:var(--tx);opacity:.85;height:{{ b.h }}%;border-radius:1px"></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:6px">
+                <span>13:35</span><span>13:50</span><span>14:05</span><span>14:20</span><span>14:35</span>
+              </div>
+            </div>
+
+            <!-- recent errors -->
+            <div style="padding:14px 18px 6px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:8px">
+                <div style="font-size:12px;font-weight:600">Unresolved errors</div>
+                <a onClick="{{ goTraces }}" style="font-size:11px;color:var(--tx2);cursor:pointer" style-hover="color:var(--tx)">All traces →</a>
+              </div>
+            </div>
+            <div style="padding:0 8px 14px">
+              <sc-for list="{{ errFeed }}" as="e" hint-placeholder-count="3">
+                <div onClick="{{ e.open }}" style="display:grid;grid-template-columns:14px 1fr auto auto;align-items:center;gap:10px;padding:8px 10px;border-radius:6px;cursor:pointer" style-hover="background:var(--bg2)">
+                  <div style="width:7px;height:7px;border-radius:50%;background:var(--err);justify-self:center"></div>
+                  <div style="min-width:0">
+                    <div style="font-size:12.5px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ e.msg }}</div>
+                    <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);margin-top:1px">{{ e.route }} · {{ e.trace }}</div>
+                  </div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2);background:var(--bg3);border-radius:4px;padding:2px 6px">×{{ e.count }}</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">{{ e.ago }}</div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- right column -->
+          <div style="display:flex;flex-direction:column">
+            <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px">
+                <div style="font-size:12px;font-weight:600">Live stream</div>
+                <a onClick="{{ goLogs }}" style="font-size:11px;color:var(--tx2);cursor:pointer" style-hover="color:var(--tx)">Logs →</a>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:3px">
+                <sc-for list="{{ liveFeed }}" as="l" hint-placeholder-count="6">
+                  <div style="display:flex;align-items:center;gap:8px;font-family:'Geist Mono',monospace;font-size:10.5px;animation:fadeIn .3s ease">
+                    <span style="color:var(--tx3);flex:none">{{ l.ts }}</span>
+                    <span style="flex:none;width:6px;height:6px;border-radius:50%;background:{{ l.dot }}"></span>
+                    <span style="color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ l.msg }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px">
+                <div style="font-size:12px;font-weight:600">Active users · now</div>
+                <a onClick="{{ goUsers }}" style="font-size:11px;color:var(--tx2);cursor:pointer" style-hover="color:var(--tx)">Manage →</a>
+              </div>
+              <div style="display:flex;flex-direction:column">
+                <sc-for list="{{ activeUsers }}" as="u" hint-placeholder-count="4">
+                  <div onClick="{{ u.open }}" style="display:flex;align-items:center;gap:9px;padding:5px 6px;margin:0 -6px;border-radius:5px;cursor:pointer" style-hover="background:var(--bg2)">
+                    <div style="width:20px;height:20px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:var(--tx2)">{{ u.ini }}</div>
+                    <div style="font-size:12px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ u.email }}</div>
+                    <div style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">{{ u.reqs }} req</div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding:14px 16px">
+              <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px">
+                <div style="font-size:12px;font-weight:600">Pinned view · Revenue by day</div>
+                <a onClick="{{ goQueries }}" style="font-size:11px;color:var(--tx2);cursor:pointer" style-hover="color:var(--tx)">Views →</a>
+              </div>
+              <div style="border:1px solid var(--line);border-radius:6px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr auto auto;gap:0;font-family:'Geist Mono',monospace;font-size:10.5px">
+                  <div style="padding:5px 9px;color:var(--tx3);border-bottom:1px solid var(--line);background:var(--bg2)">day</div>
+                  <div style="padding:5px 9px;color:var(--tx3);border-bottom:1px solid var(--line);background:var(--bg2);text-align:right">orders</div>
+                  <div style="padding:5px 9px;color:var(--tx3);border-bottom:1px solid var(--line);background:var(--bg2);text-align:right">revenue</div>
+                  <sc-for list="{{ pinnedRows }}" as="r" hint-placeholder-count="4">
+                    <div style="padding:4px 9px;color:var(--tx2);border-bottom:1px solid var(--line2)">{{ r.d }}</div>
+                    <div style="padding:4px 9px;text-align:right;color:var(--tx2);border-bottom:1px solid var(--line2)">{{ r.o }}</div>
+                    <div style="padding:4px 9px;text-align:right;border-bottom:1px solid var(--line2)">{{ r.rev }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ LOGS ============ -->
+    <sc-if value="{{ isLogs }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Logs" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeUp .25s ease">
+        <div style="flex:none;display:flex;align-items:center;gap:6px;padding:9px 16px;border-bottom:1px solid var(--line)">
+          <sc-for list="{{ levelChips }}" as="c" hint-placeholder-count="5">
+            <div onClick="{{ c.click }}" data-nav data-on="{{ c.on }}" style="font-family:'Geist Mono',monospace;font-size:10.5px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;cursor:pointer;transition:all .12s ease">{{ c.label }}</div>
+          </sc-for>
+          <div style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">{{ logCount }} lines · streaming</div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:4px 0">
+          <sc-for list="{{ logs }}" as="l" hint-placeholder-count="14">
+            <div>
+              <div onClick="{{ l.toggle }}" style="display:grid;grid-template-columns:96px 46px 92px 1fr auto;align-items:center;gap:10px;padding:3.5px 16px;cursor:pointer;font-family:'Geist Mono',monospace;font-size:11px" style-hover="background:var(--bg2)">
+                <span style="color:var(--tx3)">{{ l.ts }}</span>
+                <span style="font-size:9.5px;font-weight:600;letter-spacing:.05em;color:{{ l.lc }}">{{ l.lvl }}</span>
+                <span style="color:var(--tx2);overflow:hidden;text-overflow:ellipsis">{{ l.svc }}</span>
+                <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ l.mc }}">{{ l.msg }}</span>
+                <span style="font-size:10px;color:var(--tx3)">{{ l.traceTag }}</span>
+              </div>
+              <sc-if value="{{ l.openNow }}" hint-placeholder-val="{{ false }}">
+                <div style="margin:2px 16px 8px 106px;border:1px solid var(--line);border-radius:6px;background:var(--bg2);padding:10px 12px;animation:fadeUp .18s ease">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:6px 20px;font-family:'Geist Mono',monospace;font-size:10.5px">
+                    <sc-for list="{{ l.fields }}" as="f" hint-placeholder-count="4">
+                      <div style="display:flex;gap:8px"><span style="color:var(--tx3)">{{ f.k }}</span><span style="color:var(--tx2);overflow:hidden;text-overflow:ellipsis">{{ f.v }}</span></div>
+                    </sc-for>
+                  </div>
+                  <sc-if value="{{ l.hasTrace }}" hint-placeholder-val="{{ false }}">
+                    <div onClick="{{ l.openTrace }}" style="display:inline-flex;align-items:center;gap:6px;margin-top:9px;font-size:11px;font-weight:500;cursor:pointer;border:1px solid var(--line);border-radius:5px;padding:3px 9px;background:var(--bg)" style-hover="border-color:var(--tx3)">View trace {{ l.trace }} →</div>
+                  </sc-if>
+                </div>
+              </sc-if>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ TRACES LIST ============ -->
+    <sc-if value="{{ isTraceList }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Traces" style="flex:1;overflow-y:auto;animation:fadeUp .25s ease">
+        <div style="display:grid;grid-template-columns:44px minmax(170px,1fr) 108px 118px 44px minmax(70px,120px) 66px;gap:10px;padding:7px 16px;border-bottom:1px solid var(--line);font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;position:sticky;top:0;background:var(--bg);z-index:2;white-space:nowrap">
+          <span>ST</span><span>ROUTE</span><span>TRACE</span><span>DURATION</span><span>SP</span><span>USER</span><span style="text-align:right">TIME</span>
+        </div>
+        <sc-for list="{{ traceRows }}" as="t" hint-placeholder-count="8">
+          <div onClick="{{ t.open }}" style="display:grid;grid-template-columns:44px minmax(170px,1fr) 108px 118px 44px minmax(70px,120px) 66px;gap:10px;align-items:center;padding:7px 16px;border-bottom:1px solid var(--line2);cursor:pointer" style-hover="background:var(--bg2)">
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:{{ t.sc }}">{{ t.status }}</span>
+            <span style="font-size:12.5px;font-weight:500;font-family:'Geist Mono',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.route }}</span>
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.id }}</span>
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="width:56px;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;flex:none"><div style="height:100%;width:{{ t.dw }}%;background:{{ t.dc }};border-radius:2px"></div></div>
+              <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx2)">{{ t.dur }}</span>
+            </div>
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3)">{{ t.spans }}</span>
+            <span style="font-size:11.5px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ t.user }}</span>
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);text-align:right">{{ t.ts }}</span>
+          </div>
+        </sc-for>
+      </div>
+    </sc-if>
+
+    <!-- ============ TRACE DETAIL ============ -->
+    <sc-if value="{{ isTraceDetail }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Trace detail" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeUp .25s ease">
+        <div style="flex:none;padding:13px 16px 0;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <a onClick="{{ backToTraces }}" style="cursor:pointer;color:var(--tx3);display:flex" style-hover="color:var(--tx)"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg></a>
+            <span style="font-family:'Geist Mono',monospace;font-size:14px;font-weight:600;letter-spacing:-.01em">POST /v1/checkout</span>
+            <span style="font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;padding:2px 7px;border-radius:4px;background:var(--bg3);color:var(--tx2)">200</span>
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx2)">412ms · 18 spans · +9.8 MB</span>
+            <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3)">tr_9f2ec41a · 14:32:08.412</span>
+            <a onClick="{{ openTraceUser }}" style="margin-left:auto;font-size:11.5px;color:var(--tx2);cursor:pointer;display:flex;align-items:center;gap:6px" style-hover="color:var(--tx)">
+              <span style="width:16px;height:16px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-size:8px;font-weight:600">M</span>
+              maya@arclight.io →
+            </a>
+          </div>
+          <div style="display:flex;gap:2px;margin-top:11px">
+            <sc-for list="{{ traceTabs }}" as="tb" hint-placeholder-count="4">
+              <div onClick="{{ tb.click }}" style="font-size:12px;font-weight:500;padding:7px 11px;cursor:pointer;color:{{ tb.c }};border-bottom:2px solid {{ tb.bc }};margin-bottom:-1px;transition:color .12s ease">{{ tb.label }}</div>
+            </sc-for>
+          </div>
+        </div>
+
+        <!-- WATERFALL TAB -->
+        <sc-if value="{{ tabWaterfall }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;overflow-y:auto;padding-bottom:20px">
+            <div style="display:flex;align-items:center;padding:6px 16px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2">
+              <div style="width:322px;flex:none;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em">SPAN</div>
+              <div style="flex:1;display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)"><span>0ms</span><span>103ms</span><span>206ms</span><span>309ms</span><span>412ms</span></div>
+              <div style="width:64px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">DUR</div>
+              <div style="width:70px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">MEM Δ</div>
+            </div>
+            <sc-for list="{{ spans }}" as="s" hint-placeholder-count="16">
+              <div onClick="{{ s.toggle }}" style="display:flex;align-items:center;height:26px;padding:0 16px;cursor:pointer;border-bottom:1px solid var(--line2)" style-hover="background:var(--bg2)">
+                <div style="width:322px;flex:none;display:flex;align-items:center;gap:6px;padding-left:{{ s.pad }}px;min-width:0">
+                  <span style="width:10px;flex:none;color:var(--tx3);font-size:9px;text-align:center">{{ s.caret }}</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:8.5px;font-weight:600;letter-spacing:.05em;color:var(--tx3);background:var(--bg3);border-radius:3px;padding:1px 4px;flex:none">{{ s.tag }}</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:{{ s.nc }}">{{ s.name }}</span>
+                </div>
+                <div style="flex:1;position:relative;height:100%;background-image:linear-gradient(to right,var(--line2) 1px,transparent 1px);background-size:25% 100%">
+                  <div style="position:absolute;top:8.5px;height:9px;left:{{ s.l }}%;width:{{ s.w }}%;background:{{ s.bg }};opacity:{{ s.op }};border-radius:1.5px;min-width:2px"></div>
+                </div>
+                <div style="width:64px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2)">{{ s.dur }}</div>
+                <div style="width:70px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10.5px;color:{{ s.memc }}">{{ s.mem }}</div>
+              </div>
+            </sc-for>
+            <div style="display:flex;gap:14px;padding:10px 16px;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.95;border-radius:1px"></span>cpu</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.72;border-radius:1px"></span>fn</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.5;border-radius:1px"></span>db</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.35;border-radius:1px"></span>http</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--tx);opacity:.25;border-radius:1px"></span>cache / mw</span>
+              <span style="display:flex;align-items:center;gap:5px"><span style="width:8px;height:8px;background:var(--warn);border-radius:1px"></span>slow</span>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- CODE TAB — execution recording / time-travel debugger -->
+        <sc-if value="{{ tabCode }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;min-height:0">
+
+            <!-- execution tree -->
+            <div style="width:clamp(170px,18vw,248px);flex:none;border-right:1px solid var(--line);overflow-y:auto;padding:10px 6px">
+              <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;padding:0 8px 8px">EXECUTION PATH</div>
+              <sc-for list="{{ execTree }}" as="et" hint-placeholder-count="6">
+                <div onClick="{{ et.click }}" data-nav data-on="{{ et.on }}" style="display:flex;align-items:baseline;gap:6px;padding:5px 8px 5px {{ et.pad }}px;border-radius:5px;cursor:pointer;transition:background .12s ease;min-width:0">
+                  <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3);flex:none">{{ et.glyph }}</span>
+                  <div style="min-width:0">
+                    <div style="display:flex;align-items:baseline;min-width:0">
+                      <span style="font-family:'Geist Mono',monospace;font-size:11px;font-weight:600;color:{{ et.fc }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ et.fn }}</span>
+                      <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ et.args }}</span>
+                    </div>
+                    <div style="font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--tx3);margin-top:1px">{{ et.dur }}{{ et.memTag }}</div>
+                  </div>
+                </div>
+              </sc-for>
+              <div style="padding:10px 8px 4px;font-size:10.5px;color:var(--tx3);line-height:1.55;border-top:1px solid var(--line2);margin-top:8px">Every function the request touched, with arguments and return values recorded.</div>
+            </div>
+
+            <!-- source + recorded values -->
+            <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+              <div style="flex:none;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--bg2)">
+                <div style="display:flex;align-items:baseline;gap:9px;min-width:0">
+                  <span style="font-family:'Geist Mono',monospace;font-size:12.5px;font-weight:600;flex:none">{{ execFrame.fn }}</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ execFrame.file }}</span>
+                  <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2);flex:none;white-space:nowrap">{{ execFrame.dur }}</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:{{ execFrame.allocc }};flex:none;white-space:nowrap">{{ execFrame.alloc }}</span>
+                </div>
+                <div style="display:flex;gap:14px;margin-top:6px;flex-wrap:wrap;font-family:'Geist Mono',monospace;font-size:10.5px">
+                  <span style="color:var(--tx3)">args <span style="color:var(--tx2)">{{ execFrame.argsFull }}</span></span>
+                  <span style="color:var(--tx3)">returns <span style="color:var(--tx)">{{ execFrame.ret }}</span></span>
+                </div>
+              </div>
+              <div style="flex:1;overflow:auto;padding:6px 0 16px">
+                <sc-for list="{{ execLines }}" as="ln" hint-placeholder-count="10">
+                  <div onClick="{{ ln.click }}" style="display:flex;align-items:center;min-height:23px;cursor:pointer;background:{{ ln.bg }};border-left:2px solid {{ ln.edge }}" style-hover="background:var(--bg2)">
+                    <span style="width:42px;flex:none;text-align:right;padding-right:12px;font-family:'Geist Mono',monospace;font-size:10px;color:{{ ln.nc }}">{{ ln.n }}</span>
+                    <span style="flex:0 1 auto;min-width:0;font-family:'Geist Mono',monospace;font-size:11px;white-space:pre;overflow:hidden;text-overflow:ellipsis;color:{{ ln.cc }}">{{ ln.code }}</span>
+                    <span style="flex:1 0 90px;min-width:0;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-left:16px">{{ ln.ann }}</span>
+                    <span style="width:58px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10px;color:{{ ln.msc }};padding-right:14px">{{ ln.ms }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- state inspector -->
+            <div style="width:clamp(200px,21vw,268px);flex:none;border-left:1px solid var(--line);overflow-y:auto">
+              <div style="padding:12px 14px;border-bottom:1px solid var(--line)">
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em">STATE AFTER LINE {{ execLineNo }}</div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ execLineCode }}</div>
+              </div>
+              <div style="padding:12px 14px;border-bottom:1px solid var(--line)">
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;margin-bottom:8px">ARGUMENTS</div>
+                <sc-for list="{{ execArgs }}" as="ar" hint-placeholder-count="2">
+                  <div style="padding:3px 0">
+                    <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2)">{{ ar.k }}</div>
+                    <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx);margin-top:1px;word-break:break-all;line-height:1.45">{{ ar.v }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="padding:12px 14px;border-bottom:1px solid var(--line)">
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;margin-bottom:8px">LOCALS</div>
+                <sc-for list="{{ execLocals }}" as="lv" hint-placeholder-count="4">
+                  <div style="padding:3.5px 6px;margin:0 -6px;border-radius:4px;background:{{ lv.bg }}">
+                    <div style="display:flex;align-items:baseline;gap:6px">
+                      <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:{{ lv.kc }}">{{ lv.k }}</span>
+                      <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--warn)">{{ lv.chgTag }}</span>
+                    </div>
+                    <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2);margin-top:1px;word-break:break-all;line-height:1.45">{{ lv.v }}</div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="padding:12px 14px">
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;margin-bottom:6px">RETURN VALUE</div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx);word-break:break-all;line-height:1.5">{{ execFrame.ret }}</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- MEMORY TAB -->
+        <sc-if value="{{ tabMemory }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;overflow-y:auto;padding:14px 16px 24px">
+            <div style="display:grid;grid-template-columns:1fr 220px;gap:14px">
+              <div style="border:1px solid var(--line);border-radius:7px;padding:12px 14px">
+                <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+                  <div style="font-size:12px;font-weight:600">Heap during request</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">▼ = GC pause</div>
+                </div>
+                <svg width="100%" height="110" viewBox="0 0 600 110" preserveAspectRatio="none" style="display:block;color:var(--tx)">
+                  <path d="M0,88 L60,80 L110,74 L150,76 L190,62 L230,58 L270,44 L300,48 L330,30 L360,22 L385,58 L430,50 L470,42 L505,36 L540,66 L575,60 L600,56 L600,110 L0,110 Z" fill="currentColor" opacity="0.12"></path>
+                  <path d="M0,88 L60,80 L110,74 L150,76 L190,62 L230,58 L270,44 L300,48 L330,30 L360,22 L385,58 L430,50 L470,42 L505,36 L540,66 L575,60 L600,56" fill="none" stroke="currentColor" stroke-width="1.6"></path>
+                  <line x1="385" y1="0" x2="385" y2="110" stroke="var(--tx3)" stroke-width="1" stroke-dasharray="2,3"></line>
+                  <line x1="540" y1="0" x2="540" y2="110" stroke="var(--tx3)" stroke-width="1" stroke-dasharray="2,3"></line>
+                </svg>
+                <div style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:5px"><span>0ms</span><span>103</span><span>206</span><span>309</span><span>412ms</span></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:8px">
+                <div style="border:1px solid var(--line);border-radius:7px;padding:10px 12px;flex:1">
+                  <div style="font-size:10.5px;color:var(--tx2)">Allocated (net)</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">+9.8 MB</div>
+                </div>
+                <div style="border:1px solid var(--line);border-radius:7px;padding:10px 12px;flex:1">
+                  <div style="font-size:10.5px;color:var(--tx2)">Peak heap</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">142.3 MB</div>
+                </div>
+                <div style="border:1px solid var(--line);border-radius:7px;padding:10px 12px;flex:1">
+                  <div style="font-size:10.5px;color:var(--tx2)">GC pauses</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:19px;font-weight:600;margin-top:2px">2 <span style="font-size:11px;color:var(--tx3);font-weight:400">· 1.2ms total</span></div>
+                </div>
+              </div>
+            </div>
+
+            <div style="margin-top:16px">
+              <div style="font-size:12px;font-weight:600;margin-bottom:8px">Allocation flame graph</div>
+              <div style="position:relative;height:112px;border:1px solid var(--line);border-radius:7px;background:var(--bg2);overflow:hidden">
+                <sc-for list="{{ flame }}" as="fnode" hint-placeholder-count="9">
+                  <div title="{{ fnode.tip }}" style="position:absolute;top:{{ fnode.t }}px;left:{{ fnode.l }}%;width:{{ fnode.w }}%;height:24px;background:var(--tx);opacity:{{ fnode.op }};border-radius:2px;border:1px solid var(--bg);display:flex;align-items:center;padding:0 7px;cursor:default;transition:opacity .12s ease" style-hover="opacity:1">
+                    <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--invtx);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ fnode.label }} · {{ fnode.size }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <div style="margin-top:16px">
+              <div style="font-size:12px;font-weight:600;margin-bottom:8px">Top allocation sites</div>
+              <div style="border:1px solid var(--line);border-radius:7px;overflow:hidden">
+                <div style="display:grid;grid-template-columns:1fr 220px 90px 90px 120px;gap:10px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--line);font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em">
+                  <span>SITE</span><span>LOCATION</span><span style="text-align:right">OBJECTS</span><span style="text-align:right">SIZE</span><span>SHARE</span>
+                </div>
+                <sc-for list="{{ allocs }}" as="a" hint-placeholder-count="5">
+                  <div onClick="{{ a.jump }}" style="display:grid;grid-template-columns:1fr 220px 90px 90px 120px;gap:10px;align-items:center;padding:6px 12px;border-bottom:1px solid var(--line2);cursor:pointer" style-hover="background:var(--bg2)">
+                    <span style="font-family:'Geist Mono',monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.site }}</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ a.loc }}</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10.5px;text-align:right;color:var(--tx2)">{{ a.count }}</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10.5px;text-align:right;font-weight:600">{{ a.size }}</span>
+                    <div style="height:4px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ a.pct }}%;background:var(--tx);opacity:.8"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- TRACE LOGS TAB -->
+        <sc-if value="{{ tabTraceLogs }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;overflow-y:auto;padding:8px 0 24px">
+            <sc-for list="{{ traceLogs }}" as="l" hint-placeholder-count="6">
+              <div style="display:grid;grid-template-columns:96px 46px 92px 1fr;align-items:center;gap:10px;padding:4px 16px;font-family:'Geist Mono',monospace;font-size:11px" style-hover="background:var(--bg2)">
+                <span style="color:var(--tx3)">{{ l.ts }}</span>
+                <span style="font-size:9.5px;font-weight:600;letter-spacing:.05em;color:{{ l.lc }}">{{ l.lvl }}</span>
+                <span style="color:var(--tx2)">{{ l.svc }}</span>
+                <span style="color:{{ l.mc }}">{{ l.msg }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ ISSUES LIST ============ -->
+    <sc-if value="{{ isIssueList }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Issues" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeUp .25s ease">
+        <div style="flex:none;display:flex;align-items:center;gap:6px;padding:9px 16px;border-bottom:1px solid var(--line)">
+          <sc-for list="{{ issueChips }}" as="c" hint-placeholder-count="4">
+            <div onClick="{{ c.click }}" data-nav data-on="{{ c.on }}" style="font-family:'Geist Mono',monospace;font-size:10.5px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;cursor:pointer;transition:all .12s ease;white-space:nowrap">{{ c.label }}</div>
+          </sc-for>
+          <div style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap">grouped by fingerprint · last 24h</div>
+        </div>
+        <div style="flex:1;overflow-y:auto">
+          <div style="display:grid;grid-template-columns:14px minmax(220px,1fr) 84px 58px 52px 74px 70px;gap:10px;padding:7px 16px;border-bottom:1px solid var(--line);font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;position:sticky;top:0;background:var(--bg);z-index:2;white-space:nowrap">
+            <span></span><span>ISSUE</span><span>24H</span><span style="text-align:right">EVENTS</span><span style="text-align:right">USERS</span><span>LAST SEEN</span><span>STATE</span>
+          </div>
+          <sc-for list="{{ issueRows }}" as="i" hint-placeholder-count="6">
+            <div onClick="{{ i.open }}" style="display:grid;grid-template-columns:14px minmax(220px,1fr) 84px 58px 52px 74px 70px;gap:10px;align-items:center;padding:8px 16px;border-bottom:1px solid var(--line2);cursor:pointer;opacity:{{ i.rowOp }}" style-hover="background:var(--bg2)">
+              <div style="width:7px;height:7px;border-radius:50%;background:{{ i.dot }};justify-self:center"></div>
+              <div style="min-width:0">
+                <div style="display:flex;align-items:baseline;gap:7px;min-width:0">
+                  <span style="font-family:'Geist Mono',monospace;font-size:12px;font-weight:600;flex:none">{{ i.type }}</span>
+                  <span style="font-size:12px;color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ i.msg }}</span>
+                </div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ i.culprit }}</div>
+              </div>
+              <div style="display:flex;align-items:flex-end;gap:1.5px;height:22px">
+                <sc-for list="{{ i.spark }}" as="sb" hint-placeholder-count="12">
+                  <div style="flex:1;height:{{ sb.h }}%;background:{{ sb.c }};border-radius:1px;min-height:2px"></div>
+                </sc-for>
+              </div>
+              <span style="font-family:'Geist Mono',monospace;font-size:11px;text-align:right;font-weight:600">{{ i.events }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:11px;text-align:right;color:var(--tx2)">{{ i.users }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap">{{ i.last }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;letter-spacing:.04em;color:{{ i.stc }};white-space:nowrap">{{ i.state }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ ISSUE DETAIL ============ -->
+    <sc-if value="{{ isIssueDetail }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Issue detail" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeUp .25s ease">
+        <div style="flex:none;padding:13px 16px;border-bottom:1px solid var(--line)">
+          <div style="display:flex;align-items:flex-start;gap:12px">
+            <a onClick="{{ backToIssues }}" style="cursor:pointer;color:var(--tx3);display:flex;margin-top:3px" style-hover="color:var(--tx)"><svg width="14" height="14" viewBox="0 0 16 16"><path d="M10 3L5 8l5 5" fill="none" stroke="currentColor" stroke-width="1.5"></path></svg></a>
+            <div style="min-width:0;flex:1">
+              <div style="display:flex;align-items:baseline;gap:9px;flex-wrap:wrap">
+                <span style="font-family:'Geist Mono',monospace;font-size:15px;font-weight:600;letter-spacing:-.01em;color:var(--err)">{{ selIssue.type }}</span>
+                <span style="font-size:13px;color:var(--tx);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ selIssue.msg }}</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;margin-top:5px;flex-wrap:wrap">
+                <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3)">{{ selIssue.culprit }}</span>
+                <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;padding:1.5px 6px;border-radius:3px;background:var(--errbg);color:var(--err);letter-spacing:.04em">{{ selIssue.state }}</span>
+                <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">{{ selIssue.fingerprint }}</span>
+              </div>
+            </div>
+            <div style="display:flex;gap:7px;flex:none">
+              <div onClick="{{ resolveIssue }}" style="font-size:11.5px;font-weight:600;border-radius:6px;padding:5px 12px;cursor:pointer;background:var(--inv);color:var(--invtx);white-space:nowrap" style-hover="opacity:.85">{{ resolveLabel }}</div>
+              <div onClick="{{ ignoreIssue }}" style="font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:5px 12px;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--tx3)">{{ ignoreLabel }}</div>
+              <div style="font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:5px 12px;cursor:pointer;white-space:nowrap;color:var(--tx2)" style-hover="border-color:var(--tx3)">Assign</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:22px;margin-top:13px;flex-wrap:wrap">
+            <div><div style="font-size:10px;color:var(--tx3);font-family:'Geist Mono',monospace;letter-spacing:.04em">EVENTS</div><div style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{ selIssue.events }}</div></div>
+            <div><div style="font-size:10px;color:var(--tx3);font-family:'Geist Mono',monospace;letter-spacing:.04em">USERS</div><div style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{ selIssue.users }}</div></div>
+            <div><div style="font-size:10px;color:var(--tx3);font-family:'Geist Mono',monospace;letter-spacing:.04em">FIRST SEEN</div><div style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{ selIssue.first }}</div></div>
+            <div><div style="font-size:10px;color:var(--tx3);font-family:'Geist Mono',monospace;letter-spacing:.04em">LAST SEEN</div><div style="font-family:'Geist Mono',monospace;font-size:16px;font-weight:600;margin-top:2px">{{ selIssue.last }}</div></div>
+            <div style="flex:1;min-width:220px;display:flex;flex-direction:column;justify-content:flex-end">
+              <div style="display:flex;align-items:flex-end;gap:2px;height:34px">
+                <sc-for list="{{ selIssue.hist }}" as="hb" hint-placeholder-count="24">
+                  <div title="{{ hb.tip }}" style="flex:1;height:{{ hb.h }}%;background:{{ hb.c }};border-radius:1px;min-height:2px"></div>
+                </sc-for>
+              </div>
+              <div style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--tx3);margin-top:4px"><span>-24h</span><span>-12h</span><span>now</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div style="flex:1;overflow-y:auto">
+          <div style="display:grid;grid-template-columns:minmax(0,1.7fr) minmax(240px,1fr)">
+            <div style="border-right:1px solid var(--line);min-width:0">
+
+              <!-- stack trace -->
+              <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+                  <div style="font-size:12px;font-weight:600">Stack trace · most recent event</div>
+                  <a onClick="{{ openIssueTrace }}" style="font-size:11px;color:var(--tx2);cursor:pointer" style-hover="color:var(--tx)">Full trace {{ selIssue.trace }} →</a>
+                </div>
+                <div style="border:1px solid var(--line);border-radius:7px;overflow:hidden">
+                  <sc-for list="{{ stackFrames }}" as="sf" hint-placeholder-count="6">
+                    <div>
+                      <div onClick="{{ sf.toggle }}" style="display:flex;align-items:center;gap:9px;padding:7px 12px;cursor:pointer;border-bottom:1px solid var(--line2);opacity:{{ sf.op }}" style-hover="background:var(--bg2)">
+                        <span style="color:var(--tx3);font-size:9px;width:10px;text-align:center;flex:none">{{ sf.caret }}</span>
+                        <span style="font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600;flex:none">{{ sf.fn }}</span>
+                        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ sf.loc }}</span>
+                        <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:9px;font-weight:600;letter-spacing:.05em;color:{{ sf.tagc }};background:var(--bg3);border-radius:3px;padding:1px 5px;flex:none">{{ sf.tag }}</span>
+                      </div>
+                      <sc-if value="{{ sf.openNow }}" hint-placeholder-val="{{ false }}">
+                        <div style="background:var(--bg2);border-bottom:1px solid var(--line2)">
+                          <sc-for list="{{ sf.ctx }}" as="cx" hint-placeholder-count="5">
+                            <div style="display:flex;align-items:center;height:21px;background:{{ cx.bg }}">
+                              <span style="width:44px;flex:none;text-align:right;padding-right:12px;font-family:'Geist Mono',monospace;font-size:10px;color:{{ cx.nc }}">{{ cx.n }}</span>
+                              <span style="flex:1;font-family:'Geist Mono',monospace;font-size:11px;white-space:pre;overflow:hidden;text-overflow:ellipsis;color:{{ cx.cc }}">{{ cx.code }}</span>
+                              <span style="flex:none;padding-right:12px;font-family:'Geist Mono',monospace;font-size:9.5px;color:var(--err)">{{ cx.mark }}</span>
+                            </div>
+                          </sc-for>
+                        </div>
+                      </sc-if>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- breadcrumbs -->
+              <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                <div style="font-size:12px;font-weight:600;margin-bottom:10px">Breadcrumbs · 4.2s before error</div>
+                <div style="display:flex;flex-direction:column">
+                  <sc-for list="{{ crumbs }}" as="b" hint-placeholder-count="6">
+                    <div style="display:grid;grid-template-columns:70px 14px 74px 1fr auto;align-items:center;gap:9px;padding:3.5px 0;font-family:'Geist Mono',monospace;font-size:10.5px">
+                      <span style="color:var(--tx3)">{{ b.ts }}</span>
+                      <div style="display:flex;flex-direction:column;align-items:center;align-self:stretch"><div style="width:5px;height:5px;border-radius:50%;background:{{ b.dot }};margin-top:5px"></div><div style="width:1px;flex:1;background:var(--line2)"></div></div>
+                      <span style="color:var(--tx3)">{{ b.cat }}</span>
+                      <span style="color:{{ b.mc }};white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.msg }}</span>
+                      <span style="color:var(--tx3)">{{ b.extra }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+
+              <!-- events -->
+              <div style="padding:14px 16px 20px">
+                <div style="font-size:12px;font-weight:600;margin-bottom:8px">Recent events</div>
+                <sc-for list="{{ issueEvents }}" as="ev" hint-placeholder-count="4">
+                  <div onClick="{{ ev.open }}" style="display:grid;grid-template-columns:110px minmax(0,1fr) 70px 66px;align-items:center;gap:10px;padding:5.5px 8px;margin:0 -8px;border-radius:6px;cursor:pointer;font-family:'Geist Mono',monospace;font-size:11px" style-hover="background:var(--bg2)">
+                    <span style="color:var(--tx3)">{{ ev.id }}</span>
+                    <span style="color:var(--tx2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ev.user }}</span>
+                    <span style="color:var(--tx2)">{{ ev.dur }}</span>
+                    <span style="color:var(--tx3);text-align:right">{{ ev.ts }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+
+            <!-- sidebar -->
+            <div style="min-width:0">
+              <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:9px">TAGS</div>
+                <div style="display:flex;flex-direction:column;gap:12px">
+                  <sc-for list="{{ tagGroups }}" as="tg" hint-placeholder-count="3">
+                    <div>
+                      <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;margin-bottom:5px">{{ tg.name }}</div>
+                      <sc-for list="{{ tg.vals }}" as="tv" hint-placeholder-count="2">
+                        <div style="display:flex;align-items:center;gap:8px;padding:2.5px 0">
+                          <span style="font-family:'Geist Mono',monospace;font-size:10.5px;flex:none;width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ tv.v }}</span>
+                          <div style="flex:1;height:4px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ tv.pct }}%;background:var(--tx);opacity:.7"></div></div>
+                          <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);flex:none;width:32px;text-align:right">{{ tv.pct }}%</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:9px">MOST AFFECTED</div>
+                <sc-for list="{{ affected }}" as="af" hint-placeholder-count="3">
+                  <div onClick="{{ af.open }}" style="display:flex;align-items:center;gap:9px;padding:4.5px 6px;margin:0 -6px;border-radius:5px;cursor:pointer" style-hover="background:var(--bg2)">
+                    <div style="width:18px;height:18px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:600;color:var(--tx2);flex:none">{{ af.ini }}</div>
+                    <span style="font-size:11.5px;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ af.email }}</span>
+                    <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);flex:none">×{{ af.n }}</span>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="padding:14px 16px">
+                <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:9px">CONTEXT</div>
+                <div style="display:grid;grid-template-columns:84px 1fr;gap:5px 10px;font-family:'Geist Mono',monospace;font-size:10.5px">
+                  <sc-for list="{{ issueCtx }}" as="ic" hint-placeholder-count="6">
+                    <span style="color:var(--tx3)">{{ ic.k }}</span>
+                    <span style="color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ ic.v }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ============ USERS ============ -->
+    <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Users" style="flex:1;display:flex;flex-direction:column;min-height:0;animation:fadeUp .25s ease;position:relative">
+        <div style="flex:none;display:flex;align-items:center;gap:10px;padding:9px 16px;border-bottom:1px solid var(--line)">
+          <input value="{{ userQuery }}" onChange="{{ onUserQuery }}" placeholder="Filter by email, name, id…" style="width:260px;height:28px;padding:0 10px;border:1px solid var(--line);border-radius:6px;background:var(--bg2);font-size:12px;outline:none" style-focus="border-color:var(--tx3)">
+          <div style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">{{ userCount }} users · users table · public schema</div>
+          <div style="margin-left:auto;display:flex;gap:8px">
+            <div style="font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--tx3)">Export CSV</div>
+            <div style="font-size:11.5px;font-weight:500;border-radius:6px;padding:5px 11px;cursor:pointer;background:var(--inv);color:var(--invtx);white-space:nowrap" style-hover="opacity:.85">New user</div>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto">
+          <div style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(90px,1fr) 52px 86px 62px 72px 78px;gap:10px;padding:7px 16px;border-bottom:1px solid var(--line);font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em;position:sticky;top:0;background:var(--bg);z-index:2;white-space:nowrap">
+            <span>EMAIL</span><span>NAME</span><span>ROLE</span><span>STATUS</span><span style="text-align:right">REQ/24H</span><span>SEEN</span><span>CREATED</span>
+          </div>
+          <sc-for list="{{ userRows }}" as="u" hint-placeholder-count="8">
+            <div onClick="{{ u.open }}" style="display:grid;grid-template-columns:minmax(150px,1.4fr) minmax(90px,1fr) 52px 86px 62px 72px 78px;gap:10px;align-items:center;padding:7px 16px;border-bottom:1px solid var(--line2);cursor:pointer;background:{{ u.rowbg }}" style-hover="background:var(--bg2)">
+              <span style="font-size:12.5px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.email }}</span>
+              <span style="font-size:12px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ u.name }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;letter-spacing:.04em;color:{{ u.rolec }}">{{ u.role }}</span>
+              <span style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--tx2);white-space:nowrap"><span style="width:6px;height:6px;border-radius:50%;background:{{ u.dot }};flex:none"></span>{{ u.status }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:11px;text-align:right;color:var(--tx2);white-space:nowrap">{{ u.reqs }}</span>
+              <span style="font-size:11.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ u.lastSeen }}</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ u.created }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <!-- user drawer -->
+        <sc-if value="{{ userOpen }}" hint-placeholder-val="{{ false }}">
+          <div onClick="{{ closeUser }}" style="position:absolute;inset:0;background:rgba(0,0,0,.25);animation:fadeIn .2s ease;z-index:5"></div>
+          <div style="position:absolute;top:0;right:0;bottom:0;width:400px;background:var(--bg);border-left:1px solid var(--line);z-index:6;animation:slideIn .22s ease;display:flex;flex-direction:column;overflow-y:auto">
+            <div style="padding:16px;border-bottom:1px solid var(--line)">
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="width:36px;height:36px;border-radius:50%;background:var(--bg3);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;color:var(--tx2)">{{ selUser.ini }}</div>
+                <div style="min-width:0">
+                  <div style="font-size:14px;font-weight:600;letter-spacing:-.01em">{{ selUser.name }}</div>
+                  <div style="font-size:12px;color:var(--tx2)">{{ selUser.email }}</div>
+                </div>
+                <div onClick="{{ closeUser }}" style="margin-left:auto;cursor:pointer;color:var(--tx3);font-size:16px;padding:4px" style-hover="color:var(--tx)">✕</div>
+              </div>
+              <div style="display:flex;gap:7px;margin-top:13px">
+                <div style="flex:1;text-align:center;font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:6px 0;cursor:pointer" style-hover="border-color:var(--tx3)">Edit</div>
+                <div style="flex:1;text-align:center;font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:6px 0;cursor:pointer" style-hover="border-color:var(--tx3)">Impersonate</div>
+                <div style="flex:1;text-align:center;font-size:11.5px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:6px 0;cursor:pointer;color:var(--err)" style-hover="border-color:var(--err)">Suspend</div>
+              </div>
+            </div>
+            <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+              <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:9px">ATTRIBUTES</div>
+              <div style="display:grid;grid-template-columns:110px 1fr;gap:6px 12px;font-size:11.5px">
+                <sc-for list="{{ selUser.attrs }}" as="at" hint-placeholder-count="6">
+                  <span style="color:var(--tx3);font-family:'Geist Mono',monospace;font-size:10.5px">{{ at.k }}</span>
+                  <span style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx2);overflow:hidden;text-overflow:ellipsis">{{ at.v }}</span>
+                </sc-for>
+              </div>
+            </div>
+            <div style="padding:14px 16px">
+              <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em;margin-bottom:9px">RECENT REQUESTS</div>
+              <div style="display:flex;flex-direction:column">
+                <sc-for list="{{ selUser.reqRows }}" as="r" hint-placeholder-count="4">
+                  <div onClick="{{ r.open }}" style="display:flex;align-items:center;gap:9px;padding:6px 8px;margin:0 -8px;border-radius:6px;cursor:pointer" style-hover="background:var(--bg2)">
+                    <span style="font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;color:{{ r.sc }}">{{ r.status }}</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ r.route }}</span>
+                    <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);flex:none">{{ r.dur }}</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);flex:none">{{ r.ts }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+    <!-- ============ QUERIES / DATA VIEWS ============ -->
+    <sc-if value="{{ isQueries }}" hint-placeholder-val="{{ false }}">
+      <div data-screen-label="Data views" style="flex:1;display:flex;min-height:0;animation:fadeUp .25s ease">
+        <div style="width:clamp(170px,17vw,212px);flex:none;border-right:1px solid var(--line);display:flex;flex-direction:column">
+          <div style="padding:11px 12px 6px">
+            <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em">DASHBOARDS</div>
+          </div>
+          <div style="padding:0 6px;display:flex;flex-direction:column;gap:1px">
+            <div data-nav data-on="{{ dashOn }}" onClick="{{ goDash }}" style="padding:6px 9px;border-radius:5px;cursor:pointer;transition:background .12s ease">
+              <div style="font-size:12px;font-weight:500">Revenue overview</div>
+              <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:1px">7 tiles · auto 5m</div>
+            </div>
+          </div>
+          <div style="padding:13px 12px 6px;display:flex;align-items:center;justify-content:space-between">
+            <div style="font-size:11px;font-weight:600;color:var(--tx2);letter-spacing:.03em">SAVED VIEWS</div>
+            <div onClick="{{ goNew }}" style="cursor:pointer;color:var(--tx3);font-size:14px;line-height:1" style-hover="color:var(--tx)" title="New view">+</div>
+          </div>
+          <div style="padding:0 6px;display:flex;flex-direction:column;gap:1px">
+            <div data-nav data-on="{{ newOn }}" onClick="{{ goNew }}" style="padding:6px 9px;border-radius:5px;cursor:pointer;transition:background .12s ease;border:1px dashed var(--line)">
+              <div style="display:flex;align-items:center;gap:6px">
+                <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3);flex:none">+</span>
+                <span style="font-size:12px;font-weight:500;color:var(--tx2)">New view</span>
+              </div>
+            </div>
+            <sc-for list="{{ queryItems }}" as="q" hint-placeholder-count="3">
+              <div data-nav data-on="{{ q.on }}" onClick="{{ q.click }}" style="padding:6px 9px;border-radius:5px;cursor:pointer;transition:background .12s ease">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3);flex:none">{{ q.glyph }}</span>
+                  <span style="font-size:12px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ q.name }}</span>
+                </div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:1px;padding-left:15px">{{ q.meta }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="margin-top:auto;padding:11px 12px;font-size:10.5px;color:var(--tx3);border-top:1px solid var(--line);line-height:1.5">Views run read-only against the primary replica. Any view can become a dashboard tile.</div>
+        </div>
+
+        <!-- BI DASHBOARD -->
+        <sc-if value="{{ dashMode }}" hint-placeholder-val="{{ true }}">
+          <div style="flex:1;overflow-y:auto;min-width:0;background:var(--bg2)">
+            <div style="display:flex;align-items:center;gap:10px;padding:11px 18px;border-bottom:1px solid var(--line);background:var(--bg)">
+              <span style="font-size:13px;font-weight:600;letter-spacing:-.01em">Revenue overview</span>
+              <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">refreshed 42s ago · replica-2</span>
+              <div style="margin-left:auto;display:flex;gap:8px">
+                <div style="font-size:11px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--tx2);white-space:nowrap" style-hover="border-color:var(--tx3)">Last 7 days</div>
+                <div style="font-size:11px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:4px 10px;cursor:pointer;color:var(--tx2);white-space:nowrap" style-hover="border-color:var(--tx3)">+ Add tile</div>
+              </div>
+            </div>
+            <div style="padding:14px 18px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <sc-for list="{{ kpiTiles }}" as="k" hint-placeholder-count="4">
+                <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:12px 14px">
+                  <div style="font-size:10.5px;color:var(--tx2);font-weight:500">{{ k.label }}</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:20px;font-weight:600;letter-spacing:-.02em;margin-top:5px">{{ k.val }}</div>
+                  <div style="font-family:'Geist Mono',monospace;font-size:10px;margin-top:3px;color:{{ k.dc }}">{{ k.delta }}</div>
+                </div>
+              </sc-for>
+            </div>
+            <div style="padding:0 18px 18px;display:grid;grid-template-columns:1.35fr 1fr;gap:10px">
+              <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:13px 15px;min-width:0">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+                  <div style="font-size:12px;font-weight:600">Revenue by day</div>
+                  <a onClick="{{ openQ1 }}" style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);cursor:pointer" style-hover="color:var(--tx)">SELECT · orders →</a>
+                </div>
+                <div style="display:flex;align-items:flex-end;gap:8px;height:130px">
+                  <sc-for list="{{ revBars }}" as="rb" hint-placeholder-count="7">
+                    <div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:5px;height:100%;justify-content:flex-end">
+                      <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3)">{{ rb.top }}</span>
+                      <div title="{{ rb.tip }}" style="width:100%;height:{{ rb.h }}%;background:var(--tx);opacity:.85;border-radius:2px 2px 0 0;transition:opacity .12s ease" style-hover="opacity:1"></div>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="display:flex;gap:8px;margin-top:6px">
+                  <sc-for list="{{ revBars }}" as="rb" hint-placeholder-count="7">
+                    <span style="flex:1;text-align:center;font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3)">{{ rb.day }}</span>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:13px 15px;min-width:0;display:flex;flex-direction:column">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px">
+                  <div style="font-size:12px;font-weight:600">Signups this week</div>
+                  <a onClick="{{ openQ3 }}" style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);cursor:pointer" style-hover="color:var(--tx)">SELECT · users →</a>
+                </div>
+                <svg width="100%" height="130" viewBox="0 0 300 130" preserveAspectRatio="none" style="display:block;color:var(--tx)">
+                  <polyline points="{{ signupArea }}" fill="currentColor" opacity="0.08"></polyline>
+                  <polyline points="{{ signupLine }}" fill="none" stroke="currentColor" stroke-width="1.6"></polyline>
+                </svg>
+                <div style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3);margin-top:6px"><span>Jul 6</span><span>Jul 9</span><span>Jul 12</span></div>
+              </div>
+            </div>
+            <div style="padding:0 18px 20px">
+              <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:13px 15px">
+                <div style="display:flex;align-items:baseline;justify-content:space-between;margin-bottom:10px">
+                  <div style="font-size:12px;font-weight:600">Slowest endpoints · p95, last hour</div>
+                  <a onClick="{{ openQ2 }}" style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);cursor:pointer" style-hover="color:var(--tx)">SELECT · traces →</a>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:6px">
+                  <sc-for list="{{ p95Bars }}" as="pb" hint-placeholder-count="6">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <span style="width:210px;flex:none;font-family:'Geist Mono',monospace;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ pb.route }}</span>
+                      <div style="flex:1;height:10px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ pb.w }}%;background:{{ pb.c }};border-radius:2px"></div></div>
+                      <span style="width:60px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2)">{{ pb.v }}ms</span>
+                      <span style="width:56px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">{{ pb.hits }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <!-- NEW VIEW — UI generation pipeline -->
+        <sc-if value="{{ newMode }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0;overflow-y:auto">
+            <div style="flex:none;border-bottom:1px solid var(--line)">
+              <textarea value="{{ newSql }}" onChange="{{ onNewSql }}" spellcheck="false" placeholder="SELECT …" style="width:100%;height:96px;padding:11px 16px;border:none;background:var(--bg2);resize:none;outline:none;font-family:'Geist Mono',monospace;font-size:12px;line-height:1.65;color:var(--tx)"></textarea>
+              <div style="display:flex;align-items:center;gap:10px;padding:6px 16px;border-top:1px solid var(--line2);background:var(--bg2)">
+                <div onClick="{{ runNew }}" style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:6px;padding:4px 13px;cursor:pointer" style-hover="opacity:.85">
+                  <sc-if value="{{ running }}" hint-placeholder-val="{{ false }}">
+                    <span style="width:10px;height:10px;border:1.5px solid var(--invtx);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span>
+                  </sc-if>
+                  Run &amp; generate UI
+                  <span style="font-family:'Geist Mono',monospace;font-size:9.5px;opacity:.6">⌘↵</span>
+                </div>
+                <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">the UI below is compiled from the result set — not the SQL</span>
+              </div>
+            </div>
+
+            <sc-if value="{{ newRan }}" hint-placeholder-val="{{ false }}">
+              <div style="animation:fadeUp .3s ease">
+                <!-- step 1: schema inference -->
+                <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px">
+                    <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:3px;padding:1px 5px">1</span>
+                    <span style="font-size:12px;font-weight:600">Inferred schema</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">pg types + sampled 500 rows · 3.8ms</span>
+                  </div>
+                  <div style="border:1px solid var(--line);border-radius:7px;overflow:hidden">
+                    <div style="display:grid;grid-template-columns:1fr 110px 130px 110px 1fr;gap:10px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--line);font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);letter-spacing:.04em">
+                      <span>COLUMN</span><span>PG TYPE</span><span>SEMANTIC ROLE</span><span>DISTINCT</span><span>WHY</span>
+                    </div>
+                    <sc-for list="{{ inferRows }}" as="ir" hint-placeholder-count="3">
+                      <div style="display:grid;grid-template-columns:1fr 110px 130px 110px 1fr;gap:10px;align-items:center;padding:6.5px 12px;border-bottom:1px solid var(--line2)">
+                        <span style="font-family:'Geist Mono',monospace;font-size:11.5px;font-weight:600">{{ ir.col }}</span>
+                        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">{{ ir.pg }}</span>
+                        <span style="font-family:'Geist Mono',monospace;font-size:10px;font-weight:600;color:{{ ir.rc }};background:var(--bg3);border-radius:4px;padding:2px 7px;justify-self:start">{{ ir.role }}</span>
+                        <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx2)">{{ ir.card }}</span>
+                        <span style="font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ir.why }}</span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- step 2: layout choice -->
+                <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px">
+                    <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:3px;padding:1px 5px">2</span>
+                    <span style="font-size:12px;font-weight:600">Suggested layout</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">1 dimension + 2 measures → bars · override any time</span>
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap">
+                    <sc-for list="{{ layoutCards }}" as="lc" hint-placeholder-count="4">
+                      <div onClick="{{ lc.click }}" style="width:150px;border:1px solid {{ lc.bc }};border-radius:7px;padding:9px 11px;cursor:pointer;background:{{ lc.bg }};transition:border-color .12s ease" style-hover="border-color:var(--tx3)">
+                        <div style="display:flex;align-items:center;gap:7px">
+                          <span style="font-family:'Geist Mono',monospace;font-size:11px">{{ lc.glyph }}</span>
+                          <span style="font-size:11.5px;font-weight:600">{{ lc.name }}</span>
+                          <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:9px;color:{{ lc.pickc }}">{{ lc.pick }}</span>
+                        </div>
+                        <div style="font-size:10px;color:var(--tx3);margin-top:4px;line-height:1.45">{{ lc.why }}</div>
+                      </div>
+                    </sc-for>
+                  </div>
+                </div>
+
+                <!-- step 3: generated UI -->
+                <div style="padding:14px 16px;border-bottom:1px solid var(--line)">
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px">
+                    <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:3px;padding:1px 5px">3</span>
+                    <span style="font-size:12px;font-weight:600">Generated UI</span>
+                    <div style="margin-left:auto;display:flex;gap:8px">
+                      <div style="font-size:11px;font-weight:500;border:1px solid var(--line);border-radius:6px;padding:4px 11px;cursor:pointer;color:var(--tx2);white-space:nowrap" style-hover="border-color:var(--tx3)">Edit spec</div>
+                      <div style="font-size:11.5px;font-weight:600;border-radius:6px;padding:4px 12px;cursor:pointer;background:var(--inv);color:var(--invtx);white-space:nowrap" style-hover="opacity:.85">Save view</div>
+                    </div>
+                  </div>
+                  <div style="border:1px solid var(--line);border-radius:7px;padding:13px 15px">
+                    <div style="display:flex;flex-direction:column;gap:7px">
+                      <sc-for list="{{ newBars }}" as="nb" hint-placeholder-count="5">
+                        <div style="display:flex;align-items:center;gap:12px">
+                          <span style="width:120px;flex:none;font-family:'Geist Mono',monospace;font-size:11px;text-align:right;color:var(--tx2)">{{ nb.label }}</span>
+                          <div style="flex:1;height:14px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ nb.w }}%;background:var(--tx);opacity:.85;border-radius:2px;transform-origin:left;animation:growX .45s ease"></div></div>
+                          <span style="width:80px;flex:none;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600">{{ nb.val }}</span>
+                          <span style="width:66px;flex:none;text-align:right;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">{{ nb.sub }}</span>
+                        </div>
+                      </sc-for>
+                    </div>
+                    <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:12px">revenue by region · orders as secondary · 5 rows · 61ms</div>
+                  </div>
+                </div>
+
+                <!-- step 4: the spec -->
+                <div style="padding:14px 16px 22px">
+                  <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:9px">
+                    <span style="font-family:'Geist Mono',monospace;font-size:9.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:3px;padding:1px 5px">4</span>
+                    <span style="font-size:12px;font-weight:600">View spec</span>
+                    <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3)">this is what gets saved — UI re-renders from it on every run</span>
+                  </div>
+                  <div style="border:1px solid var(--line);border-radius:7px;background:var(--bg2);padding:12px 14px;font-family:'Geist Mono',monospace;font-size:10.5px;line-height:1.75;color:var(--tx2);white-space:pre">{{ specJson }}</div>
+                </div>
+              </div>
+            </sc-if>
+
+            <sc-if value="{{ newIdle }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:10px;padding:40px">
+                <div style="font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx3);text-align:center;line-height:2">SQL → result set → schema inference → view spec → UI<br><span style="font-size:10px">run the query to watch the pipeline</span></div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+
+        <!-- VIEW BUILDER -->
+        <sc-if value="{{ viewMode }}" hint-placeholder-val="{{ false }}">
+          <div style="flex:1;display:flex;flex-direction:column;min-width:0">
+            <div style="flex:none;display:flex;align-items:center;gap:6px;padding:8px 14px;border-bottom:1px solid var(--line)">
+              <div onClick="{{ toggleSql }}" data-nav data-on="{{ sqlOn }}" style="font-family:'Geist Mono',monospace;font-size:10.5px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;cursor:pointer;white-space:nowrap">SQL</div>
+              <div style="width:1px;height:16px;background:var(--line);margin:0 4px"></div>
+              <sc-for list="{{ vizChips }}" as="vc" hint-placeholder-count="4">
+                <div onClick="{{ vc.click }}" data-nav data-on="{{ vc.on }}" style="font-family:'Geist Mono',monospace;font-size:10.5px;padding:3px 9px;border:1px solid var(--line);border-radius:99px;cursor:pointer;white-space:nowrap">{{ vc.label }}</div>
+              </sc-for>
+              <span style="margin-left:auto;font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ queryMeta }}</span>
+              <div style="font-size:11px;color:var(--tx2);cursor:pointer;white-space:nowrap" style-hover="color:var(--tx)">Pin to dashboard</div>
+            </div>
+            <sc-if value="{{ sqlOpen }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:none;border-bottom:1px solid var(--line)">
+                <textarea value="{{ sql }}" onChange="{{ onSql }}" spellcheck="false" style="width:100%;height:104px;padding:11px 16px;border:none;background:var(--bg2);resize:none;outline:none;font-family:'Geist Mono',monospace;font-size:12px;line-height:1.65;color:var(--tx)"></textarea>
+                <div style="display:flex;align-items:center;gap:10px;padding:6px 16px;border-top:1px solid var(--line2);background:var(--bg2)">
+                  <div onClick="{{ runQuery }}" style="display:flex;align-items:center;gap:7px;font-size:11.5px;font-weight:600;background:var(--inv);color:var(--invtx);border-radius:6px;padding:4px 13px;cursor:pointer" style-hover="opacity:.85">
+                    <sc-if value="{{ running }}" hint-placeholder-val="{{ false }}">
+                      <span style="width:10px;height:10px;border:1.5px solid var(--invtx);border-top-color:transparent;border-radius:50%;animation:spin .6s linear infinite;display:inline-block"></span>
+                    </sc-if>
+                    Run
+                    <span style="font-family:'Geist Mono',monospace;font-size:9.5px;opacity:.6">⌘↵</span>
+                  </div>
+                  <span style="font-family:'Geist Mono',monospace;font-size:10.5px;color:var(--tx3)">read-only · replica-2 · limit 10k</span>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- table viz -->
+            <sc-if value="{{ vizTable }}" hint-placeholder-val="{{ true }}">
+              <div style="flex:1;overflow:auto">
+                <div style="display:flex;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2">
+                  <div style="width:40px;flex:none;padding:7px 0;text-align:center;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);border-right:1px solid var(--line2)">#</div>
+                  <sc-for list="{{ resultCols }}" as="c" hint-placeholder-count="3">
+                    <div onClick="{{ c.sort }}" style="flex:1;display:flex;align-items:center;gap:6px;padding:7px 12px;cursor:pointer;border-right:1px solid var(--line2)" style-hover="background:var(--bg2)">
+                      <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3);border:1px solid var(--line);border-radius:3px;padding:0 3px;flex:none">{{ c.t }}</span>
+                      <span style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx2);letter-spacing:.04em">{{ c.name }}</span>
+                      <span style="font-family:'Geist Mono',monospace;font-size:9px;color:var(--tx3)">{{ c.arrow }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <sc-for list="{{ resultRows }}" as="r" hint-placeholder-count="7">
+                  <div style="display:flex;border-bottom:1px solid var(--line2)" style-hover="background:var(--bg2)">
+                    <div style="width:40px;flex:none;padding:5.5px 0;text-align:center;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);border-right:1px solid var(--line2)">{{ r.n }}</div>
+                    <sc-for list="{{ r.cells }}" as="cell" hint-placeholder-count="3">
+                      <div style="flex:1;padding:5.5px 12px;font-family:'Geist Mono',monospace;font-size:11px;color:var(--tx2);border-right:1px solid var(--line2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ cell }}</div>
+                    </sc-for>
+                  </div>
+                </sc-for>
+                <div style="display:flex;border-bottom:1px solid var(--line);background:var(--bg2)">
+                  <div style="width:40px;flex:none;padding:6px 0;text-align:center;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);border-right:1px solid var(--line2)">Σ</div>
+                  <sc-for list="{{ resultAggs }}" as="ag" hint-placeholder-count="3">
+                    <div style="flex:1;padding:6px 12px;font-family:'Geist Mono',monospace;font-size:10.5px;font-weight:600;border-right:1px solid var(--line2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ ag }}</div>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-if>
+
+            <!-- bar viz -->
+            <sc-if value="{{ vizBar }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;overflow-y:auto;padding:20px 22px">
+                <div style="display:flex;flex-direction:column;gap:7px">
+                  <sc-for list="{{ vizBarRows }}" as="vb" hint-placeholder-count="7">
+                    <div style="display:flex;align-items:center;gap:12px">
+                      <span style="width:190px;flex:none;font-family:'Geist Mono',monospace;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;color:var(--tx2)">{{ vb.label }}</span>
+                      <div style="flex:1;height:16px;background:var(--bg3);border-radius:2px;overflow:hidden"><div style="height:100%;width:{{ vb.w }}%;background:var(--tx);opacity:.85;border-radius:2px;transform-origin:left;animation:growX .4s ease"></div></div>
+                      <span style="width:90px;flex:none;font-family:'Geist Mono',monospace;font-size:11px;font-weight:600">{{ vb.val }}</span>
+                    </div>
+                  </sc-for>
+                </div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:14px">{{ vizAxis }}</div>
+              </div>
+            </sc-if>
+
+            <!-- line viz -->
+            <sc-if value="{{ vizLine }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;overflow-y:auto;padding:20px 22px">
+                <svg width="100%" height="220" viewBox="0 0 600 220" preserveAspectRatio="none" style="display:block;color:var(--tx)">
+                  <line x1="0" y1="219" x2="600" y2="219" stroke="var(--line)" stroke-width="1"></line>
+                  <line x1="0" y1="110" x2="600" y2="110" stroke="var(--line2)" stroke-width="1"></line>
+                  <line x1="0" y1="8" x2="600" y2="8" stroke="var(--line2)" stroke-width="1"></line>
+                  <polyline points="{{ vizLineArea }}" fill="currentColor" opacity="0.08"></polyline>
+                  <polyline points="{{ vizLinePts }}" fill="none" stroke="currentColor" stroke-width="1.8"></polyline>
+                </svg>
+                <div style="display:flex;justify-content:space-between;font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:8px">
+                  <span>{{ vizLineFirst }}</span><span>{{ vizLineLast }}</span>
+                </div>
+                <div style="font-family:'Geist Mono',monospace;font-size:10px;color:var(--tx3);margin-top:10px">{{ vizAxis }}</div>
+              </div>
+            </sc-if>
+
+            <!-- number viz -->
+            <sc-if value="{{ vizNum }}" hint-placeholder-val="{{ false }}">
+              <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:8px">
+                <div style="font-family:'Geist Mono',monospace;font-size:54px;font-weight:600;letter-spacing:-.03em">{{ vizNumVal }}</div>
+                <div style="font-size:12px;color:var(--tx2)">{{ vizNumLabel }}</div>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;theme&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;dark&quot;,&quot;light&quot;],&quot;default&quot;:&quot;dark&quot;,&quot;tsType&quot;:&quot;'dark' | 'light'&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;statusColor&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Appearance&quot;},&quot;live&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+class Component extends DCLogic {
+  state = {
+    theme: null, view: 'overview', traceId: null, traceTab: 'waterfall',
+    collapsed: {}, logOpen: null, logLevel: 'all', userId: null, userQuery: '',
+    frameOpen: { f1: true, f2: true, f3: false }, queryId: 'q1', sql: null,
+    issueId: null, issueFilter: 'unresolved', sfOpen: { 0: true }, issueState: {},
+    execSel: 'fx1', execLine: 47,
+    running: false, ranMs: null, tick: 0,
+    dataMode: 'dashboard', sqlOpen: true, vizBy: {}, sortCol: null, sortDir: 1,
+    newSql: null, newRan: false, newViz: 'bars'
+  };
+
+  NEW_SQL = "SELECT region,\n       count(*) AS orders,\n       sum(total_cents) / 100.0 AS revenue\nFROM orders\nWHERE created_at > now() - interval '7 days'\nGROUP BY region ORDER BY revenue DESC;";
+
+  NEW_ROWS = [
+    ['us-east', '5,204', '$266,918', 38],
+    ['eu-west', '3,911', '$201,344', 29],
+    ['us-west', '2,488', '$127,802', 18],
+    ['ap-south', '1,340', '$68,110', 10],
+    ['sa-east', '719', '$34,855', 5]
+  ];
+
+  componentDidMount() {
+    if (this.props.live ?? true) {
+      this._iv = setInterval(() => this.setState(s => ({ tick: s.tick + 1 })), 2200);
+    }
+  }
+  componentWillUnmount() { if (this._iv) clearInterval(this._iv); }
+
+  // ---------- static data ----------
+  SPANS = [
+    { id: 's1', p: null, name: 'POST /v1/checkout', kind: 'req', a: 0, b: 412, mem: '+9.8 MB' },
+    { id: 's2', p: 's1', name: 'middleware.cors', kind: 'mw', a: 0, b: 1 },
+    { id: 's3', p: 's1', name: 'middleware.auth', kind: 'mw', a: 1, b: 38, mem: '+0.3 MB' },
+    { id: 's4', p: 's3', name: 'GET session:9f2e…', kind: 'cache', a: 2, b: 9 },
+    { id: 's5', p: 's3', name: 'SELECT users WHERE id = $1', kind: 'db', a: 10, b: 36 },
+    { id: 's6', p: 's1', name: 'handler.checkout', kind: 'fn', a: 39, b: 368, mem: '+8.9 MB' },
+    { id: 's7', p: 's6', name: 'validate.payload', kind: 'fn', a: 39, b: 47 },
+    { id: 's8', p: 's6', name: 'BEGIN', kind: 'db', a: 48, b: 52 },
+    { id: 's9', p: 's6', name: 'SELECT inventory … FOR UPDATE', kind: 'db', a: 53, b: 91 },
+    { id: 's10', p: 's6', name: 'pricing.compute', kind: 'fn', a: 92, b: 140, mem: '+6.4 MB' },
+    { id: 's11', p: 's10', name: 'MGET fx:rates:*', kind: 'cache', a: 94, b: 103 },
+    { id: 's12', p: 's10', name: 'compute_totals()', kind: 'cpu', a: 104, b: 139, mem: '+6.1 MB', st: 'warn' },
+    { id: 's13', p: 's6', name: 'POST payments.stripe.com/v1/intents', kind: 'http', a: 141, b: 322, st: 'warn' },
+    { id: 's14', p: 's6', name: 'INSERT INTO orders … RETURNING id', kind: 'db', a: 323, b: 352 },
+    { id: 's15', p: 's6', name: 'COMMIT', kind: 'db', a: 353, b: 361 },
+    { id: 's16', p: 's6', name: 'PUBLISH order.created', kind: 'queue', a: 362, b: 368 },
+    { id: 's17', p: 's1', name: 'serialize.response', kind: 'fn', a: 369, b: 380 },
+    { id: 's18', p: 's1', name: 'middleware.compress', kind: 'mw', a: 380, b: 412 }
+  ];
+
+  KIND = {
+    req: { op: .9, tag: 'REQ' }, fn: { op: .72, tag: 'FN' }, cpu: { op: .95, tag: 'CPU' },
+    db: { op: .5, tag: 'SQL' }, http: { op: .35, tag: 'HTTP' }, cache: { op: .25, tag: 'KV' },
+    mw: { op: .25, tag: 'MW' }, queue: { op: .45, tag: 'MQ' }
+  };
+
+  TRACES = [
+    { id: 'tr_9f2ec41a', route: 'POST /v1/checkout', status: 200, dur: 412, spans: 18, user: 'maya@arclight.io', ts: '14:32:08' },
+    { id: 'tr_d05e6f13', route: 'POST /v1/checkout', status: 500, dur: 1204, spans: 21, user: 'jon@helix.dev', ts: '14:31:55' },
+    { id: 'tr_b81d03f7', route: 'GET /v1/orders/:id', status: 200, dur: 38, spans: 6, user: 'maya@arclight.io', ts: '14:31:52' },
+    { id: 'tr_4c2a99e0', route: 'POST /v1/auth/token', status: 401, dur: 12, spans: 4, user: '—', ts: '14:31:47' },
+    { id: 'tr_77aa1b2c', route: 'GET /v1/inventory?sku=…', status: 200, dur: 96, spans: 9, user: 'svc:storefront', ts: '14:31:41' },
+    { id: 'tr_e91c7d55', route: 'GET /v1/users/me', status: 200, dur: 21, spans: 5, user: 'ana@fielder.co', ts: '14:31:38' },
+    { id: 'tr_18fc02ab', route: 'PATCH /v1/orders/:id', status: 200, dur: 154, spans: 12, user: 'ops@meridian.dev', ts: '14:31:30' },
+    { id: 'tr_63be9d21', route: 'POST /v1/webhooks/stripe', status: 200, dur: 67, spans: 8, user: 'svc:stripe', ts: '14:31:22' }
+  ];
+
+  LOGS = [
+    { id: 1, ts: '14:32:08.412', lvl: 'INFO', svc: 'api-gateway', msg: '200 POST /v1/checkout 412ms', trace: 'tr_9f2ec41a', fields: { method: 'POST', status: '200', dur: '412ms', ip: '52.14.88.201', ua: 'arclight-ios/3.2' } },
+    { id: 2, ts: '14:32:08.398', lvl: 'WARN', svc: 'pricing', msg: 'compute_totals slow: 35ms for 1,204 line items', trace: 'tr_9f2ec41a', fields: { items: '1204', threshold: '20ms', worker: 'w4' } },
+    { id: 3, ts: '14:32:08.322', lvl: 'INFO', svc: 'payments', msg: 'stripe intent pi_3Oa8… confirmed', trace: 'tr_9f2ec41a', fields: { amount: '$184.20', currency: 'usd', latency: '181ms' } },
+    { id: 4, ts: '14:31:55.891', lvl: 'ERROR', svc: 'orders', msg: 'TimeoutError: payments-api exceeded 1000ms deadline', trace: 'tr_d05e6f13', fields: { deadline: '1000ms', elapsed: '1102ms', retry: 'scheduled', user: 'jon@helix.dev' } },
+    { id: 5, ts: '14:31:55.104', lvl: 'INFO', svc: 'orders', msg: 'checkout started cart=c_88d2 items=3', trace: 'tr_d05e6f13', fields: { cart: 'c_88d2', items: '3' } },
+    { id: 6, ts: '14:31:47.220', lvl: 'WARN', svc: 'auth', msg: '401 invalid refresh token (expired 14d ago)', trace: 'tr_4c2a99e0', fields: { token_age: '44d', ip: '188.166.42.7' } },
+    { id: 7, ts: '14:31:41.870', lvl: 'DEBUG', svc: 'inventory', msg: 'cache miss sku=SKU-4471, hydrating from pg', trace: 'tr_77aa1b2c', fields: { sku: 'SKU-4471', source: 'postgres' } },
+    { id: 8, ts: '14:31:38.514', lvl: 'INFO', svc: 'api-gateway', msg: '200 GET /v1/users/me 21ms', trace: 'tr_e91c7d55', fields: { status: '200', dur: '21ms' } },
+    { id: 9, ts: '14:31:33.108', lvl: 'DEBUG', svc: 'scheduler', msg: 'cron invoice.digest enqueued 312 jobs', fields: { jobs: '312', queue: 'default' } },
+    { id: 10, ts: '14:31:30.441', lvl: 'INFO', svc: 'orders', msg: 'order ord_1f38 status → fulfilled', trace: 'tr_18fc02ab', fields: { order: 'ord_1f38', actor: 'ops@meridian.dev' } },
+    { id: 11, ts: '14:31:22.913', lvl: 'INFO', svc: 'webhooks', msg: 'stripe evt_3Oa7… verified, dispatched to 2 handlers', trace: 'tr_63be9d21', fields: { handlers: '2', sig: 'valid' } },
+    { id: 12, ts: '14:31:19.550', lvl: 'ERROR', svc: 'workers', msg: 'UnhandledRejection in job email.receipt: SMTP 454', fields: { job: 'email.receipt', code: '454', attempts: '3/5' } },
+    { id: 13, ts: '14:31:12.007', lvl: 'DEBUG', svc: 'gc', msg: 'minor gc 0.8ms, freed 12.4MB, heap 118MB', fields: { pause: '0.8ms', freed: '12.4MB' } },
+    { id: 14, ts: '14:31:04.881', lvl: 'INFO', svc: 'auth', msg: 'new session for ana@fielder.co (webauthn)', fields: { method: 'webauthn', device: 'macOS' } }
+  ];
+
+  USERS = [
+    { id: 'u1', email: 'maya@arclight.io', name: 'Maya Okafor', role: 'ADMIN', status: 'active', reqs: '1,204', lastSeen: '12s ago', created: '2024-03-11' },
+    { id: 'u2', email: 'jon@helix.dev', name: 'Jon Reyes', role: 'USER', status: 'active', reqs: '486', lastSeen: '2m ago', created: '2024-08-02' },
+    { id: 'u3', email: 'ana@fielder.co', name: 'Ana Petrov', role: 'USER', status: 'active', reqs: '319', lastSeen: '4m ago', created: '2025-01-19' },
+    { id: 'u4', email: 'ops@meridian.dev', name: 'Ops Service', role: 'STAFF', status: 'active', reqs: '8,911', lastSeen: '1m ago', created: '2023-11-30' },
+    { id: 'u5', email: 'sam@quill.app', name: 'Sam Whitfield', role: 'USER', status: 'suspended', reqs: '0', lastSeen: '9d ago', created: '2024-06-14' },
+    { id: 'u6', email: 'dev@arclight.io', name: 'Dev Bot', role: 'STAFF', status: 'active', reqs: '2,340', lastSeen: '30s ago', created: '2024-02-01' },
+    { id: 'u7', email: 'lin@vantar.io', name: 'Lin Zhao', role: 'USER', status: 'active', reqs: '77', lastSeen: '1h ago', created: '2025-05-22' },
+    { id: 'u8', email: 'kade@northbeam.co', name: 'Kade Iqbal', role: 'USER', status: 'invited', reqs: '—', lastSeen: 'never', created: '2026-07-10' }
+  ];
+
+  QUERIES = {
+    q1: {
+      name: 'Revenue by day', meta: 'orders · 7 rows',
+      sql: "SELECT date_trunc('day', created_at)::date AS day,\n       count(*) AS orders,\n       sum(total_cents) / 100.0 AS revenue\nFROM orders\nWHERE status = 'paid'\nGROUP BY 1 ORDER BY 1 DESC LIMIT 7;",
+      cols: ['day', 'orders', 'revenue'],
+      rows: [['2026-07-12', '1,842', '$96,412.80'], ['2026-07-11', '2,203', '$114,209.32'], ['2026-07-10', '2,114', '$108,441.10'], ['2026-07-09', '1,988', '$101,730.44'], ['2026-07-08', '2,071', '$105,918.02'], ['2026-07-07', '1,754', '$88,204.90'], ['2026-07-06', '1,690', '$84,112.55']],
+      ms: 42
+    },
+    q2: {
+      name: 'Slow endpoints (p95)', meta: 'traces · 6 rows',
+      sql: "SELECT route,\n       percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms) AS p95_ms,\n       count(*) AS hits\nFROM traces\nWHERE started_at > now() - interval '1 hour'\nGROUP BY route ORDER BY p95_ms DESC LIMIT 6;",
+      cols: ['route', 'p95_ms', 'hits'],
+      rows: [['POST /v1/checkout', '498.2', '3,102'], ['POST /v1/webhooks/stripe', '241.7', '1,882'], ['PATCH /v1/orders/:id', '199.4', '904'], ['GET /v1/inventory', '121.9', '7,733'], ['GET /v1/orders/:id', '64.3', '5,210'], ['GET /v1/users/me', '31.0', '9,404']],
+      ms: 118
+    },
+    q3: {
+      name: 'Signups this week', meta: 'users · 7 rows',
+      sql: "SELECT date_trunc('day', created_at)::date AS day,\n       count(*) AS signups,\n       count(*) FILTER (WHERE source = 'invite') AS invited\nFROM users\nWHERE created_at > now() - interval '7 days'\nGROUP BY 1 ORDER BY 1 DESC;",
+      cols: ['day', 'signups', 'invited'],
+      rows: [['2026-07-12', '48', '11'], ['2026-07-11', '61', '9'], ['2026-07-10', '57', '14'], ['2026-07-09', '44', '6'], ['2026-07-08', '52', '12'], ['2026-07-07', '39', '4'], ['2026-07-06', '35', '8']],
+      ms: 12
+    }
+  };
+
+  EXEC = {
+    fx0: {
+      fn: 'middleware.auth', file: 'core/middleware/auth.mn:17', dur: '37ms', alloc: '+0.3 MB',
+      args: [{ k: 'req', v: 'Request<POST /v1/checkout, ip=52.14.88.201>' }], argsFull: '(req, next)',
+      ret: 'Response<200 OK, 4.1 KB> — passthrough',
+      lines: [
+        { n: 17, code: 'async def auth(req, next):', ms: '', locals: [] },
+        { n: 18, code: '    sid = req.cookies.get("session")', ms: '0.1', ann: 'sid ≔ "9f2e41ac-88d2"', locals: [{ k: 'sid', v: '"9f2e41ac-88d2"', chg: 1 }] },
+        { n: 19, code: '    sess = await cache.get(f"session:{sid}")', ms: '7.2', ann: 'sess ≔ Session(uid=u_1042, exp=+13d)', locals: [{ k: 'sid', v: '"9f2e41ac-88d2"' }, { k: 'sess', v: 'Session(uid="u_1042", exp="+13d")', chg: 1 }] },
+        { n: 21, code: '    user = await db.fetch_one(SELECT_USER, sess.uid)', ms: '26.1', ann: 'user ≔ User(maya@arclight.io, role=admin)', locals: [{ k: 'sid', v: '"9f2e41ac-88d2"' }, { k: 'sess', v: 'Session(uid="u_1042")' }, { k: 'user', v: 'User(email="maya@arclight.io", role="admin")', chg: 1 }] },
+        { n: 22, code: '    req.ctx.user = user', ms: '0.1', ann: 'req.ctx.user ≔ User(u_1042)', locals: [{ k: 'user', v: 'User(email="maya@arclight.io")' }, { k: 'req.ctx.user', v: 'User(u_1042)', chg: 1 }] },
+        { n: 23, code: '    return await next(req)', ms: '', ann: '→ Response<200>', locals: [{ k: 'user', v: 'User(email="maya@arclight.io")' }] }
+      ]
+    },
+    fx1: {
+      fn: 'handler.checkout', file: 'app/handlers/checkout.mn:41', dur: '329ms', alloc: '+8.9 MB',
+      args: [{ k: 'req', v: 'Request<POST /v1/checkout, user=maya@arclight.io, body=1.8 KB>' }], argsFull: '(req)',
+      ret: 'Response<200 OK, json Order(id="ord_9f2e", total=$184.20), 4.1 KB>',
+      lines: [
+        { n: 41, code: 'async def checkout(req: Request) -> Response:', ms: '', locals: [] },
+        { n: 42, code: '    cart = await req.json(Cart)', ms: '4.1', ann: 'cart ≔ Cart(items=[Item×3], region="us-ny", total=None)', locals: [{ k: 'cart', v: 'Cart(items=[Item×3], region="us-ny", total=None)', chg: 1 }] },
+        { n: 43, code: '    validate(cart)', ms: '7.9', ann: '✓ passed — 11 rules', locals: [{ k: 'cart', v: 'Cart(items=[Item×3], region="us-ny")' }] },
+        { n: 45, code: '    async with db.tx() as tx:', ms: '4.2', ann: 'tx ≔ Tx<#4471, isolation=repeatable_read>', locals: [{ k: 'cart', v: 'Cart(items=[Item×3])' }, { k: 'tx', v: 'Tx<#4471, repeatable_read>', chg: 1 }] },
+        { n: 46, code: '        inv = await tx.lock_inventory(cart.skus)', ms: '38.4', ann: 'inv ≔ [Row×3] locked (SKU-4471, SKU-1180, SKU-0092)', locals: [{ k: 'cart', v: 'Cart(items=[Item×3])' }, { k: 'tx', v: 'Tx<#4471>' }, { k: 'inv', v: '[Row×3] locked — SKU-4471, SKU-1180, SKU-0092', chg: 1 }] },
+        { n: 47, code: '        totals = pricing.compute(cart, inv)', ms: '48.7', hot: 1, ann: 'totals ≔ Totals(subtotal=171.80, tax=12.40, total=184.20)', locals: [{ k: 'cart', v: 'Cart(items=[Item×3], region="us-ny")' }, { k: 'tx', v: 'Tx<#4471>' }, { k: 'inv', v: '[Row×3] locked' }, { k: 'totals', v: 'Totals(subtotal=171.80, tax=12.40, fees=0.00, total=184.20)', chg: 1 }] },
+        { n: 48, code: '        intent = await payments.create_intent(totals)', ms: '181.2', hot: 1, ann: 'intent ≔ Intent(id="pi_3Oa8…", status="requires_capture")', locals: [{ k: 'cart', v: 'Cart(items=[Item×3])' }, { k: 'totals', v: 'Totals(total=184.20)' }, { k: 'intent', v: 'Intent(id="pi_3Oa8…", status="requires_capture", 181ms)', chg: 1 }] },
+        { n: 49, code: '        order = await tx.insert(Order.from_cart(cart, intent))', ms: '29.3', ann: 'order ≔ Order(id="ord_9f2e", status="pending", total=184.20)', locals: [{ k: 'totals', v: 'Totals(total=184.20)' }, { k: 'intent', v: 'Intent(id="pi_3Oa8…")' }, { k: 'order', v: 'Order(id="ord_9f2e", status="pending", total=184.20)', chg: 1 }] },
+        { n: 51, code: '    await bus.publish("order.created", order.id)', ms: '6.4', ann: 'ack ≔ nats://order.created seq=88213', locals: [{ k: 'order', v: 'Order(id="ord_9f2e")' }, { k: 'ack', v: 'nats seq=88213', chg: 1 }] },
+        { n: 52, code: '    return Response.json(order, status=200)', ms: '11.2', ann: '→ Response<200, 4.1 KB>', locals: [{ k: 'order', v: 'Order(id="ord_9f2e", status="pending")' }] }
+      ]
+    },
+    fx5: {
+      fn: 'validate.payload', file: 'app/validation/cart.mn:8', dur: '7.9ms', alloc: '+0.1 MB',
+      args: [{ k: 'cart', v: 'Cart(items=[Item×3], region="us-ny", total=None)' }], argsFull: '(cart)',
+      ret: 'None — 11 rules passed, 0 warnings',
+      lines: [
+        { n: 8, code: 'def validate(cart: Cart) -> None:', ms: '', locals: [] },
+        { n: 9, code: '    errs = [r.check(cart) for r in RULES if r.applies(cart)]', ms: '6.8', ann: 'errs ≔ [] (11 rules, 0 failed)', locals: [{ k: 'errs', v: '[] — 11 rules evaluated, 0 failed', chg: 1 }] },
+        { n: 10, code: '    if any(errs):', ms: '0.1', ann: '→ False', locals: [{ k: 'errs', v: '[]' }] },
+        { n: 11, code: '        raise ValidationError(errs)', ms: '', ann: 'not executed', skip: 1, locals: [] },
+      ]
+    },
+    fx2: {
+      fn: 'pricing.compute', file: 'app/pricing/engine.mn:12', dur: '48.7ms', alloc: '+6.4 MB',
+      args: [{ k: 'cart', v: 'Cart(items=[Item×3], region="us-ny")' }, { k: 'inv', v: '[Row×3] locked' }], argsFull: '(cart, inv)',
+      ret: 'Totals(subtotal=171.80, tax=12.40, total=184.20)',
+      lines: [
+        { n: 12, code: 'def compute(cart, inv):', ms: '', locals: [] },
+        { n: 13, code: '    rates = cache.mget("fx:rates:*")', ms: '9.2', ann: 'rates ≔ {USD:1.0, EUR:0.92, GBP:0.79} (hit)', locals: [{ k: 'rates', v: '{USD: 1.0, EUR: 0.92, GBP: 0.79} — cache hit 9ms', chg: 1 }] },
+        { n: 14, code: '    return compute_totals(cart, inv, rates)', ms: '35.0', ann: '→ Totals(total=184.20)', locals: [{ k: 'rates', v: '{USD: 1.0, EUR: 0.92, GBP: 0.79}' }] }
+      ]
+    },
+    fx3: {
+      fn: 'compute_totals', file: 'app/pricing/engine.mn:81', dur: '35ms', alloc: '+6.1 MB', hot: true,
+      args: [{ k: 'cart', v: 'Cart(items=[Item×3])' }, { k: 'inv', v: '[Row×3]' }, { k: 'rates', v: '{USD:1.0, EUR:0.92, GBP:0.79}' }], argsFull: '(cart, inv, rates)',
+      ret: 'Totals(lines=[Line×1204], subtotal=171.80, tax=12.40, total=184.20)',
+      lines: [
+        { n: 81, code: 'def compute_totals(cart, inv, rates):', ms: '', locals: [] },
+        { n: 83, code: '    lines = [Line(i, price(i, rates)) for i in cart.expand()]', ms: '21.8', hot: 1, ann: 'lines ≔ [Line×1,204] (+4.2 MB) ⚠ hot', locals: [{ k: 'lines', v: '[Line×1,204] — 48,201 objects, +4.2 MB', chg: 1 }] },
+        { n: 84, code: '    subtotal = sum(l.amount for l in lines)', ms: '3.1', ann: 'subtotal ≔ Decimal("171.80")', locals: [{ k: 'lines', v: '[Line×1,204]' }, { k: 'subtotal', v: 'Decimal("171.80")', chg: 1 }] },
+        { n: 86, code: '    tax = tax_table.apply(lines, cart.region)', ms: '6.9', ann: 'tax ≔ Decimal("12.40") — us-ny 7.22%', locals: [{ k: 'subtotal', v: 'Decimal("171.80")' }, { k: 'tax', v: 'Decimal("12.40") — region us-ny @ 7.22%', chg: 1 }] },
+        { n: 88, code: '    return Totals(lines, subtotal, tax, fees(subtotal))', ms: '2.8', ann: '→ Totals(total=184.20)', locals: [{ k: 'subtotal', v: 'Decimal("171.80")' }, { k: 'tax', v: 'Decimal("12.40")' }] }
+      ]
+    },
+    fx4: {
+      fn: 'payments.create_intent', file: 'app/services/payments.mn:58', dur: '181.2ms', alloc: '+0.4 MB',
+      args: [{ k: 'totals', v: 'Totals(subtotal=171.80, tax=12.40, total=184.20)' }], argsFull: '(totals)',
+      ret: 'Intent(id="pi_3Oa8…", status="requires_capture", amount=18420)',
+      lines: [
+        { n: 58, code: 'async def create_intent(totals: Totals) -> Intent:', ms: '', locals: [] },
+        { n: 61, code: '    payload = intent_payload(totals, idempotency_key())', ms: '0.4', ann: 'payload ≔ {amount: 18420, currency: "usd", key: "idk_88d2…"}', locals: [{ k: 'payload', v: '{amount: 18420, currency: "usd", idempotency_key: "idk_88d2…"}', chg: 1 }] },
+        { n: 62, code: '    async with http.client(timeout=Deadline(1000)) as c:', ms: '0.2', ann: 'c ≔ HttpClient(pool=stripe, deadline=1000ms)', locals: [{ k: 'payload', v: '{amount: 18420, …}' }, { k: 'c', v: 'HttpClient(pool="stripe", deadline=1000ms)', chg: 1 }] },
+        { n: 64, code: '        resp = await c.post(STRIPE_INTENTS, json=payload)', ms: '180.1', hot: 1, ann: 'resp ≔ 200 OK in 180ms (attempt 1)', locals: [{ k: 'payload', v: '{amount: 18420, …}' }, { k: 'resp', v: 'Response<200 OK, 1.2 KB, 180ms, attempt 1/3>', chg: 1 }] },
+        { n: 65, code: '    if resp.status >= 500:', ms: '0.1', ann: '→ False', locals: [{ k: 'resp', v: 'Response<200 OK>' }] },
+        { n: 68, code: '    return Intent.parse(resp)', ms: '0.4', ann: '→ Intent(id="pi_3Oa8…")', locals: [{ k: 'resp', v: 'Response<200 OK>' }] }
+      ]
+    },
+    fx6: {
+      fn: 'Order.from_cart', file: 'app/models/order.mn:34', dur: '3.1ms', alloc: '+1.1 MB',
+      args: [{ k: 'cart', v: 'Cart(items=[Item×3])' }, { k: 'intent', v: 'Intent(id="pi_3Oa8…")' }], argsFull: '(cart, intent)',
+      ret: 'Order(id="ord_9f2e", status="pending", total=184.20)',
+      lines: [
+        { n: 34, code: 'def from_cart(cls, cart, intent):', ms: '', locals: [] },
+        { n: 35, code: '    items = [OrderItem.of(i) for i in cart.items]', ms: '1.9', ann: 'items ≔ [OrderItem×3] (+1.0 MB)', locals: [{ k: 'items', v: '[OrderItem×3]', chg: 1 }] },
+        { n: 36, code: '    return cls(items=items, intent_id=intent.id, status="pending")', ms: '1.2', ann: '→ Order(id="ord_9f2e")', locals: [{ k: 'items', v: '[OrderItem×3]' }] }
+      ]
+    }
+  };
+
+  EXEC_TREE = [
+    { fid: 'fx0', d: 0 },
+    { fid: 'fx1', d: 0 },
+    { fid: 'fx5', d: 1 },
+    { fid: 'fx2', d: 1 },
+    { fid: 'fx3', d: 2 },
+    { fid: 'fx4', d: 1 },
+    { fid: 'fx6', d: 1 }
+  ];
+
+  FLAME = [
+    { d: 0, l: 0, w: 100, label: 'request POST /v1/checkout', size: '9.8 MB' },
+    { d: 1, l: 1, w: 90, label: 'handler.checkout', size: '8.9 MB' },
+    { d: 1, l: 92, w: 7, label: 'serialize', size: '0.6 MB' },
+    { d: 2, l: 2, w: 62, label: 'pricing.compute', size: '6.4 MB' },
+    { d: 2, l: 66, w: 14, label: 'Order.from_cart', size: '1.1 MB' },
+    { d: 2, l: 81, w: 9, label: 'lock_inventory', size: '0.9 MB' },
+    { d: 3, l: 3, w: 41, label: 'Line() ×1,204', size: '4.2 MB' },
+    { d: 3, l: 45, w: 13, label: 'tax_table.apply', size: '1.4 MB' },
+    { d: 3, l: 59, w: 4, label: 'Totals', size: '0.5 MB' }
+  ];
+
+  ALLOCS = [
+    { site: 'Line() · list comprehension', loc: 'app/pricing/engine.mn:83', count: '48,201', size: '4.2 MB', pct: 43 },
+    { site: 'tax_table.apply · dict expand', loc: 'app/pricing/tax.mn:112', count: '9,844', size: '1.4 MB', pct: 14 },
+    { site: 'Order.from_cart · model init', loc: 'app/models/order.mn:34', count: '3,120', size: '1.1 MB', pct: 11 },
+    { site: 'lock_inventory · row buffers', loc: 'app/db/inventory.mn:58', count: '1,204', size: '0.9 MB', pct: 9 },
+    { site: 'Response.json · encoder', loc: 'core/http/response.mn:91', count: '412', size: '0.6 MB', pct: 6 }
+  ];
+
+  ISSUES = [
+    { id: 'i1', type: 'TimeoutError', msg: 'payments-api exceeded 1000ms deadline', culprit: 'payments.create_intent · app/services/payments.mn:64', events: '142', users: '38', first: '3d ago', last: '13s ago', state: 'unresolved', lvl: 'error', trace: 'tr_d05e6f13', spark: [2,3,2,5,4,8,6,12,9,16,22,30] },
+    { id: 'i2', type: 'IntegrityError', msg: 'duplicate key value violates "orders_idempotency_key"', culprit: 'tx.insert · app/models/order.mn:34', events: '31', users: '9', first: '11d ago', last: '4m ago', state: 'unresolved', lvl: 'error', trace: 'tr_9f2ec41a', spark: [4,2,5,3,4,2,6,3,4,5,3,4] },
+    { id: 'i3', type: 'UnhandledRejection', msg: 'job email.receipt: SMTP 454 transient auth failure', culprit: 'workers.email · app/jobs/email.mn:118', events: '58', users: '—', first: '2d ago', last: '49s ago', state: 'unresolved', lvl: 'error', trace: 'tr_63be9d21', spark: [1,2,1,3,2,8,14,10,6,4,5,7] },
+    { id: 'i4', type: 'ValidationError', msg: 'missing required field cart.region', culprit: 'validate.payload · app/handlers/checkout.mn:43', events: '210', users: '64', first: '6h ago', last: '2m ago', state: 'unresolved', lvl: 'warning', trace: 'tr_9f2ec41a', spark: [0,0,0,0,0,2,9,18,26,31,28,24] },
+    { id: 'i5', type: 'ConnectionResetError', msg: 'redis pool exhausted (max 64)', culprit: 'cache.acquire · core/cache/pool.mn:52', events: '17', users: '12', first: '9d ago', last: '2d ago', state: 'resolved', lvl: 'error', trace: 'tr_77aa1b2c', spark: [8,12,6,3,1,0,0,0,0,0,0,0] },
+    { id: 'i6', type: 'KeyError', msg: "'fx:rates:EUR' missing from rate cache", culprit: 'pricing.price · app/pricing/engine.mn:71', events: '9', users: '3', first: '14d ago', last: '1d ago', state: 'ignored', lvl: 'warning', trace: 'tr_9f2ec41a', spark: [1,0,2,0,1,0,0,1,0,1,0,1] }
+  ];
+
+  STACK = [
+    { fn: 'create_intent', loc: 'app/services/payments.mn:64', tag: 'IN APP', inApp: true, ctx: [
+      { n: 61, code: '    payload = intent_payload(totals, idempotency_key)' },
+      { n: 62, code: '    async with http.client(timeout=Deadline(1000)) as c:' },
+      { n: 64, code: '        resp = await c.post(STRIPE_INTENTS, json=payload)', err: true },
+      { n: 65, code: '    if resp.status >= 500:' },
+      { n: 66, code: '        raise UpstreamError(resp)' }
+    ]},
+    { fn: 'checkout', loc: 'app/handlers/checkout.mn:48', tag: 'IN APP', inApp: true, ctx: [
+      { n: 46, code: '        inv = await tx.lock_inventory(cart.skus)' },
+      { n: 47, code: '        totals = pricing.compute(cart, inv)' },
+      { n: 48, code: '        intent = await payments.create_intent(totals)', err: true },
+      { n: 49, code: '        order = await tx.insert(Order.from_cart(cart, intent))' }
+    ]},
+    { fn: 'dispatch', loc: 'core/router.mn:203', tag: 'FRAMEWORK', inApp: false, ctx: [] },
+    { fn: 'run_middleware', loc: 'core/middleware/base.mn:88', tag: 'FRAMEWORK', inApp: false, ctx: [] },
+    { fn: 'serve_connection', loc: 'core/server/http1.mn:141', tag: 'FRAMEWORK', inApp: false, ctx: [] }
+  ];
+
+  CRUMBS = [
+    { ts: '-4.21s', cat: 'http', msg: 'POST /v1/checkout started', extra: 'cart=c_88d2', lvl: 'info' },
+    { ts: '-4.18s', cat: 'auth', msg: 'session validated u_2081 (jon@helix.dev)', extra: '', lvl: 'info' },
+    { ts: '-4.02s', cat: 'db', msg: 'SELECT inventory … FOR UPDATE — 41ms', extra: '3 rows', lvl: 'info' },
+    { ts: '-3.87s', cat: 'cache', msg: 'MGET fx:rates:* — hit', extra: '9ms', lvl: 'info' },
+    { ts: '-3.71s', cat: 'http.out', msg: 'POST payments.stripe.com/v1/intents', extra: 'attempt 1', lvl: 'info' },
+    { ts: '-2.70s', cat: 'http.out', msg: 'retry #1 after 1001ms (no response)', extra: 'backoff 250ms', lvl: 'warn' },
+    { ts: '-1.44s', cat: 'http.out', msg: 'retry #2 after 1004ms (no response)', extra: 'backoff 500ms', lvl: 'warn' },
+    { ts: '0.00s', cat: 'error', msg: 'TimeoutError: deadline 1000ms exceeded', extra: 'elapsed 1102ms', lvl: 'error' }
+  ];
+
+  TAGGROUPS = [
+    { name: 'release', vals: [{ v: 'v0.9.2', pct: 84 }, { v: 'v0.9.1', pct: 16 }] },
+    { name: 'region', vals: [{ v: 'us-east-1', pct: 71 }, { v: 'eu-west-2', pct: 29 }] },
+    { name: 'upstream', vals: [{ v: 'stripe', pct: 93 }, { v: 'adyen', pct: 7 }] }
+  ];
+
+  ISSUE_EVENTS = [
+    { id: 'evt_a91f04c2', user: 'jon@helix.dev', dur: '1204ms', ts: '14:31:55', trace: 'tr_d05e6f13' },
+    { id: 'evt_88b2e1d0', user: 'lin@vantar.io', dur: '1188ms', ts: '14:29:02', trace: 'tr_d05e6f13' },
+    { id: 'evt_73cd9a41', user: 'ana@fielder.co', dur: '1310ms', ts: '14:21:47', trace: 'tr_d05e6f13' },
+    { id: 'evt_5f02bb18', user: 'jon@helix.dev', dur: '1097ms', ts: '14:08:33', trace: 'tr_d05e6f13' },
+    { id: 'evt_41ea77c9', user: 'svc:storefront', dur: '1240ms', ts: '13:52:19', trace: 'tr_d05e6f13' }
+  ];
+
+  ERRS = [
+    { msg: 'TimeoutError: payments-api exceeded 1000ms deadline', route: 'POST /v1/checkout', trace: 'tr_d05e6f13', count: 14, ago: '13s' },
+    { msg: 'UnhandledRejection in job email.receipt: SMTP 454', route: 'worker · email.receipt', trace: 'tr_63be9d21', count: 6, ago: '49s' },
+    { msg: 'IntegrityError: duplicate key orders_idempotency_key', route: 'POST /v1/checkout', trace: 'tr_9f2ec41a', count: 2, ago: '4m' }
+  ];
+
+  BARS = [52,58,49,61,55,66,60,71,64,58,73,68,62,77,70,81,74,68,84,78,72,88,80,86,79,91,84,77,89,95,86,80,92,85,97,90,83,94,88,99].map((h,i)=>({h:Math.round(h*.68), eh: (i===18||i===27||i===35)?7:(i%9===4?3:0), tip:''}));
+
+  LIVE = [
+    { ts: '14:32:09', dot: 'ok', msg: 'gateway ▸ 200 GET /v1/inventory 44ms' },
+    { ts: '14:32:09', dot: 'ok', msg: 'auth ▸ session refreshed u_1042' },
+    { ts: '14:32:08', dot: 'ok', msg: 'gateway ▸ 200 POST /v1/checkout 412ms' },
+    { ts: '14:32:08', dot: 'warn', msg: 'pricing ▸ compute_totals slow 35ms' },
+    { ts: '14:32:07', dot: 'ok', msg: 'workers ▸ email.receipt done 88ms' },
+    { ts: '14:32:07', dot: 'err', msg: 'orders ▸ retry #2 payments deadline' },
+    { ts: '14:32:06', dot: 'ok', msg: 'gateway ▸ 200 GET /v1/users/me 19ms' },
+    { ts: '14:32:06', dot: 'ok', msg: 'gc ▸ minor 0.7ms freed 9.1MB' }
+  ];
+
+  // ---------- helpers ----------
+  fmtMs(v) { return v >= 1000 ? (v / 1000).toFixed(2) + 's' : v + 'ms'; }
+
+  levelColor(lvl) {
+    return lvl === 'ERROR' ? 'var(--err)' : lvl === 'WARN' ? 'var(--warn)' : lvl === 'DEBUG' ? 'var(--tx3)' : 'var(--tx2)';
+  }
+
+  renderVals() {
+    const st = this.state;
+    const theme = st.theme ?? this.props.theme ?? 'dark';
+    const setV = (patch) => this.setState(patch);
+    const view = st.view;
+
+    // nav
+    const NAV = [
+      { id: 'overview', label: 'Overview', badge: '', d: 'M2 2h5.2v5.2H2V2zm6.8 0H14v5.2H8.8V2zM2 8.8h5.2V14H2V8.8zm6.8 0H14V14H8.8V8.8z' },
+      { id: 'logs', label: 'Logs', badge: '24k', d: 'M2 3h12v1.4H2V3zm0 3.8h12v1.4H2V6.8zm0 3.8h8v1.4H2v-1.4z' },
+      { id: 'traces', label: 'Traces', badge: '3.1k', d: 'M2 3h9v1.6H2V3zm2 4h10v1.6H4V7zm2 4h6v1.6H6v-1.6z' },
+      { id: 'issues', label: 'Issues', badge: '4', d: 'M8 1.2l7 12.6H1L8 1.2zm-.8 4.6h1.6v4H7.2v-4zm0 5.2h1.6v1.6H7.2V11z' },
+      { id: 'users', label: 'Users', badge: '12.4k', d: 'M8 2a3 3 0 110 6 3 3 0 010-6zm-6 12c0-3.1 2.7-5 6-5s6 1.9 6 5H2z' },
+      { id: 'queries', label: 'Data views', badge: '3', d: 'M8 2c3.3 0 6 .9 6 2.1S11.3 6.2 8 6.2 2 5.3 2 4.1 4.7 2 8 2zM2 6c1.2.9 3.5 1.4 6 1.4S12.8 6.9 14 6V8.5c0 1.2-2.7 2.1-6 2.1S2 9.7 2 8.5V6zm0 4.4c1.2.9 3.5 1.4 6 1.4s4.8-.5 6-1.4v1.5c0 1.2-2.7 2.1-6 2.1s-6-.9-6-2.1v-1.5z' }
+    ];
+    const navItems = NAV.map(n => ({
+      ...n,
+      on: (view === n.id) ? '1' : '0',
+      click: () => setV({ view: n.id, traceId: null, userId: null, issueId: null })
+    }));
+
+    // crumbs
+    const crumbMap = { overview: ['Overview', 'production · last 60 min'], logs: ['Logs', 'all services · streaming'], traces: ['Traces', 'sampled 100% · last hour'], issues: ['Issues', 'grouped by fingerprint · 24h'], users: ['Users', 'auth.users'], queries: ['Data views', 'read-only replica'] };
+    let [crumb, crumbSub] = crumbMap[view] || ['', ''];
+    if (view === 'traces' && st.traceId) { crumb = 'Trace'; crumbSub = st.traceId + ' · POST /v1/checkout'; }
+    const selIssueSrc = this.ISSUES.find(i => i.id === st.issueId);
+    if (view === 'issues' && selIssueSrc) { crumb = 'Issue'; crumbSub = selIssueSrc.type + ' · ' + selIssueSrc.msg; }
+
+    // overview
+    const dotColor = (d) => d === 'err' ? 'var(--err)' : d === 'warn' ? 'var(--warn)' : 'var(--tx3)';
+    const rot = st.tick % this.LIVE.length;
+    const liveFeed = this.LIVE.slice(rot).concat(this.LIVE.slice(0, rot)).slice(0, 7)
+      .map(l => ({ ...l, dot: dotColor(l.dot) }));
+    const errIssueMap = { tr_d05e6f13: 'i1', tr_63be9d21: 'i3', tr_9f2ec41a: 'i2' };
+    const errFeed = this.ERRS.map(e => ({ ...e, open: () => setV({ view: 'issues', issueId: errIssueMap[e.trace] || 'i1' }) }));
+    const activeUsers = this.USERS.slice(0, 4).map(u => ({
+      email: u.email, reqs: u.reqs, ini: u.name.split(' ').map(w => w[0]).join('').slice(0, 2),
+      open: () => setV({ view: 'users', userId: u.id })
+    }));
+    const pinnedRows = this.QUERIES.q1.rows.slice(0, 4).map(r => ({ d: r[0], o: r[1], rev: r[2] }));
+
+    // logs
+    const lvls = ['all', 'INFO', 'WARN', 'ERROR', 'DEBUG'];
+    const levelChips = lvls.map(l => ({
+      label: l === 'all' ? 'ALL' : l, on: st.logLevel === l ? '1' : '0',
+      click: () => setV({ logLevel: l })
+    }));
+    const logsFiltered = this.LOGS.filter(l => st.logLevel === 'all' || l.lvl === st.logLevel);
+    const logs = logsFiltered.map(l => ({
+      ...l,
+      lc: this.levelColor(l.lvl),
+      mc: l.lvl === 'ERROR' ? 'var(--err)' : 'var(--tx)',
+      traceTag: l.trace ? l.trace.slice(0, 11) + '…' : '',
+      hasTrace: !!l.trace,
+      openNow: st.logOpen === l.id,
+      fields: Object.entries(l.fields).map(([k, v]) => ({ k, v })),
+      toggle: () => setV({ logOpen: st.logOpen === l.id ? null : l.id }),
+      openTrace: () => setV({ view: 'traces', traceId: l.trace, traceTab: 'waterfall' })
+    }));
+
+    // traces list
+    const maxDur = 1204;
+    const traceRows = this.TRACES.map(t => ({
+      ...t,
+      sc: t.status >= 500 ? 'var(--err)' : t.status >= 400 ? 'var(--warn)' : 'var(--tx2)',
+      dc: t.status >= 500 ? 'var(--err)' : t.dur > 400 ? 'var(--warn)' : 'var(--tx)',
+      dw: Math.max(3, Math.round(t.dur / maxDur * 100)),
+      dur: this.fmtMs(t.dur),
+      open: () => setV({ view: 'traces', traceId: t.id, traceTab: 'waterfall' })
+    }));
+
+    // waterfall
+    const kids = {};
+    this.SPANS.forEach(s => { if (s.p) (kids[s.p] = kids[s.p] || []).push(s.id); });
+    const depth = {};
+    this.SPANS.forEach(s => { depth[s.id] = s.p ? depth[s.p] + 1 : 0; });
+    const hiddenBy = (s) => { let p = s.p; while (p) { if (st.collapsed[p]) return true; p = this.SPANS.find(x => x.id === p).p; } return false; };
+    const spans = this.SPANS.filter(s => !hiddenBy(s)).map(s => {
+      const k = this.KIND[s.kind];
+      const hasKids = !!kids[s.id];
+      const isWarn = s.st === 'warn', isErr = s.st === 'err';
+      return {
+        id: s.id, name: s.name, tag: k.tag,
+        pad: depth[s.id] * 14,
+        caret: hasKids ? (st.collapsed[s.id] ? '▸' : '▾') : '',
+        nc: isErr ? 'var(--err)' : isWarn ? 'var(--warn)' : 'var(--tx)',
+        l: (s.a / 412 * 100).toFixed(2),
+        w: Math.max(.45, (s.b - s.a) / 412 * 100).toFixed(2),
+        bg: isErr ? 'var(--err)' : isWarn ? 'var(--warn)' : 'var(--tx)',
+        op: (isErr || isWarn) ? 1 : k.op,
+        dur: (s.b - s.a) + 'ms',
+        mem: s.mem || '', memc: s.mem && parseFloat(s.mem.slice(1)) > 5 ? 'var(--warn)' : 'var(--tx3)',
+        toggle: hasKids ? (() => this.setState(prev => ({ collapsed: { ...prev.collapsed, [s.id]: !prev.collapsed[s.id] } }))) : (() => {})
+      };
+    });
+
+    // trace tabs
+    const tabs = [['waterfall', 'Waterfall'], ['code', 'Code trace'], ['memory', 'Memory'], ['logs', 'Logs (4)']];
+    const traceTabs = tabs.map(([id, label]) => ({
+      label,
+      c: st.traceTab === id ? 'var(--tx)' : 'var(--tx3)',
+      bc: st.traceTab === id ? 'var(--tx)' : 'transparent',
+      click: () => setV({ traceTab: id })
+    }));
+
+    // execution recording (time-travel debugger)
+    const exFrame = this.EXEC[st.execSel] || this.EXEC.fx1;
+    const execTree = this.EXEC_TREE.map(t => {
+      const f = this.EXEC[t.fid];
+      return {
+        fn: f.fn, args: f.argsFull, dur: f.dur,
+        memTag: f.alloc ? ' · ' + f.alloc : '',
+        pad: 8 + t.d * 14,
+        glyph: t.d === 0 ? '▸' : '└',
+        fc: f.hot ? 'var(--warn)' : 'var(--tx)',
+        on: st.execSel === t.fid ? '1' : '0',
+        click: () => setV({ execSel: t.fid, execLine: (f.lines.find(l => l.hot) || f.lines[1] || f.lines[0]).n })
+      };
+    });
+    const selLine = exFrame.lines.find(l => l.n === st.execLine) || exFrame.lines[0];
+    const execLines = exFrame.lines.map(ln => {
+      const sel = ln.n === selLine.n;
+      return {
+        n: ln.n, code: ln.code,
+        ann: ln.ann || '',
+        ms: ln.ms ? ln.ms + 'ms' : '',
+        bg: sel ? 'var(--bg3)' : ln.hot ? 'var(--warnbg)' : 'transparent',
+        edge: sel ? 'var(--tx)' : 'transparent',
+        nc: sel ? 'var(--tx)' : 'var(--tx3)',
+        cc: ln.skip ? 'var(--tx3)' : ln.hot ? 'var(--tx)' : 'var(--tx2)',
+        msc: ln.hot ? 'var(--warn)' : 'var(--tx3)',
+        click: () => setV({ execLine: ln.n })
+      };
+    });
+    const execLocals = (selLine.locals || []).map(lv => ({
+      k: lv.k, v: lv.v,
+      kc: lv.chg ? 'var(--tx)' : 'var(--tx2)',
+      bg: lv.chg ? 'var(--bg2)' : 'transparent',
+      chgTag: lv.chg ? 'Δ changed' : ''
+    }));
+    const execFrame = {
+      fn: exFrame.fn, file: exFrame.file, dur: exFrame.dur, alloc: exFrame.alloc,
+      allocc: exFrame.hot ? 'var(--warn)' : 'var(--tx3)',
+      argsFull: exFrame.argsFull, ret: exFrame.ret
+    };
+
+    // memory
+    const flame = this.FLAME.map(f => ({
+      ...f, t: 4 + f.d * 26, op: f.d === 0 ? .92 : f.d === 1 ? .78 : f.d === 2 ? .6 : .45,
+      tip: f.label + ' — ' + f.size
+    }));
+    const allocs = this.ALLOCS.map(a => ({ ...a, jump: () => setV({ traceTab: 'code' }) }));
+    const traceLogs = this.LOGS.filter(l => l.trace === 'tr_9f2ec41a').concat(this.LOGS.slice(6, 7)).map(l => ({
+      ...l, lc: this.levelColor(l.lvl), mc: l.lvl === 'ERROR' ? 'var(--err)' : 'var(--tx)'
+    }));
+
+    // issues
+    const stateOf = (i) => st.issueState[i.id] || i.state;
+    const filters = ['unresolved', 'resolved', 'ignored', 'all'];
+    const issueChips = filters.map(f => ({
+      label: f.toUpperCase(), on: st.issueFilter === f ? '1' : '0',
+      click: () => setV({ issueFilter: f })
+    }));
+    const issuesFiltered = this.ISSUES.filter(i => st.issueFilter === 'all' || stateOf(i) === st.issueFilter);
+    const issueRows = issuesFiltered.map(i => {
+      const state = stateOf(i);
+      const max = Math.max(...i.spark, 1);
+      return {
+        ...i, state: state.toUpperCase(),
+        dot: state !== 'unresolved' ? 'var(--tx3)' : i.lvl === 'error' ? 'var(--err)' : 'var(--warn)',
+        stc: state === 'unresolved' ? (i.lvl === 'error' ? 'var(--err)' : 'var(--warn)') : 'var(--tx3)',
+        rowOp: state === 'ignored' ? .5 : 1,
+        spark: i.spark.map(v => ({ h: Math.max(6, Math.round(v / max * 100)), c: i.lvl === 'error' ? 'var(--err)' : 'var(--warn)' })),
+        open: () => setV({ view: 'issues', issueId: i.id })
+      };
+    });
+    const si = selIssueSrc || this.ISSUES[0];
+    const siState = stateOf(si);
+    const histMax = Math.max(...si.spark, 1);
+    const selIssue = {
+      ...si, state: siState.toUpperCase(),
+      fingerprint: 'fp_' + si.id + '9c3e71ab',
+      hist: si.spark.flatMap(v => [v, Math.max(0, v - 1)]).map((v, ix) => ({
+        h: Math.max(5, Math.round(v / histMax * 100)),
+        c: si.lvl === 'error' ? 'var(--err)' : 'var(--warn)',
+        tip: v + ' events'
+      }))
+    };
+    const setIssueState = (val) => this.setState(prev => ({
+      issueState: { ...prev.issueState, [si.id]: (prev.issueState[si.id] || si.state) === val ? 'unresolved' : val }
+    }));
+    const stackFrames = this.STACK.map((sf, ix) => ({
+      ...sf,
+      caret: sf.ctx.length ? (st.sfOpen[ix] ? '▾' : '▸') : '',
+      openNow: !!st.sfOpen[ix] && sf.ctx.length > 0,
+      op: sf.inApp ? 1 : .55,
+      tagc: sf.inApp ? 'var(--tx2)' : 'var(--tx3)',
+      toggle: sf.ctx.length ? (() => this.setState(prev => ({ sfOpen: { ...prev.sfOpen, [ix]: !prev.sfOpen[ix] } }))) : (() => {}),
+      ctx: sf.ctx.map(cx => ({
+        ...cx,
+        bg: cx.err ? 'var(--errbg)' : 'transparent',
+        nc: cx.err ? 'var(--err)' : 'var(--tx3)',
+        cc: cx.err ? 'var(--tx)' : 'var(--tx2)',
+        mark: cx.err ? '◀ raised' : ''
+      }))
+    }));
+    const crumbs = this.CRUMBS.map(b => ({
+      ...b,
+      dot: b.lvl === 'error' ? 'var(--err)' : b.lvl === 'warn' ? 'var(--warn)' : 'var(--tx3)',
+      mc: b.lvl === 'error' ? 'var(--err)' : 'var(--tx2)'
+    }));
+    const issueEvents = this.ISSUE_EVENTS.map(ev => ({
+      ...ev, open: () => setV({ view: 'traces', traceId: ev.trace, traceTab: 'waterfall' })
+    }));
+    const affected = [
+      { email: 'jon@helix.dev', n: 41, ini: 'JR', uid: 'u2' },
+      { email: 'lin@vantar.io', n: 22, ini: 'LZ', uid: 'u7' },
+      { email: 'ana@fielder.co', n: 14, ini: 'AP', uid: 'u3' }
+    ].map(af => ({ ...af, open: () => setV({ view: 'users', userId: af.uid }) }));
+    const issueCtx = [
+      { k: 'runtime', v: 'meridian 0.9.2' }, { k: 'handler', v: 'POST /v1/checkout' },
+      { k: 'sdk', v: 'mn-otel 1.4.0' }, { k: 'sample', v: '100%' },
+      { k: 'mechanism', v: 'deadline' }, { k: 'retries', v: '2 (exhausted)' }
+    ];
+
+    // users
+    const q = st.userQuery.toLowerCase();
+    const filtered = this.USERS.filter(u => !q || u.email.toLowerCase().includes(q) || u.name.toLowerCase().includes(q));
+    const userRows = filtered.map(u => ({
+      ...u,
+      rolec: u.role === 'ADMIN' ? 'var(--tx)' : 'var(--tx3)',
+      dot: u.status === 'active' ? 'var(--ok)' : u.status === 'suspended' ? 'var(--err)' : 'var(--tx3)',
+      rowbg: st.userId === u.id ? 'var(--bg2)' : 'transparent',
+      open: () => setV({ userId: u.id })
+    }));
+    const su = this.USERS.find(u => u.id === st.userId);
+    const selUser = su ? {
+      ...su,
+      ini: su.name.split(' ').map(w => w[0]).join('').slice(0, 2),
+      attrs: [
+        { k: 'id', v: su.id + '_9c41f2ae77' }, { k: 'role', v: su.role.toLowerCase() },
+        { k: 'plan', v: su.role === 'ADMIN' ? 'enterprise' : 'pro' }, { k: 'mfa', v: 'webauthn' },
+        { k: 'region', v: 'us-east-1' }, { k: 'created', v: su.created + ' 09:14 UTC' },
+        { k: 'last_ip', v: '52.14.88.201' }, { k: 'sessions', v: '2 active' }
+      ],
+      reqRows: [
+        { status: '200', route: 'POST /v1/checkout', dur: '412ms', ts: '14:32:08', sc: 'var(--tx2)', open: () => setV({ view: 'traces', traceId: 'tr_9f2ec41a', traceTab: 'waterfall' }) },
+        { status: '200', route: 'GET /v1/orders/ord_1f38', dur: '38ms', ts: '14:31:52', sc: 'var(--tx2)', open: () => setV({ view: 'traces', traceId: 'tr_b81d03f7', traceTab: 'waterfall' }) },
+        { status: '200', route: 'GET /v1/users/me', dur: '21ms', ts: '14:29:11', sc: 'var(--tx2)', open: () => {} },
+        { status: '429', route: 'POST /v1/checkout', dur: '2ms', ts: '14:12:40', sc: 'var(--warn)', open: () => {} }
+      ]
+    } : { ini: '', name: '', email: '', attrs: [], reqRows: [] };
+
+    // queries / BI
+    const active = this.QUERIES[st.queryId];
+    const QMETA = {
+      q1: { types: ['date', 'int', 'cur'], glyph: '▥', defViz: 'table' },
+      q2: { types: ['abc', 'num', 'int'], glyph: '▤', defViz: 'bars' },
+      q3: { types: ['date', 'int', 'int'], glyph: '∿', defViz: 'line' }
+    };
+    const num = (v) => parseFloat(String(v).replace(/[$,%\s,]/g, '').replace(/,/g, '')) || 0;
+    const inDash = st.dataMode === 'dashboard';
+    const queryItems = Object.entries(this.QUERIES).map(([id, qq]) => ({
+      name: qq.name, meta: qq.meta, glyph: QMETA[id].glyph,
+      on: (st.dataMode === 'view' && st.queryId === id) ? '1' : '0',
+      click: () => setV({ dataMode: 'view', queryId: id, sql: null, ranMs: null, sortCol: null })
+    }));
+    const runQuery = () => {
+      if (st.running) return;
+      setV({ running: true });
+      setTimeout(() => this.setState({ running: false, ranMs: active.ms }), 550);
+    };
+    const meta = QMETA[st.queryId];
+    const viz = st.vizBy[st.queryId] || meta.defViz;
+    const vizChips = [['table', 'TABLE'], ['bars', 'BARS'], ['line', 'LINE'], ['num', 'NUMBER']].map(([id, label]) => ({
+      label, on: viz === id ? '1' : '0',
+      click: () => this.setState(prev => ({ vizBy: { ...prev.vizBy, [st.queryId]: id } }))
+    }));
+    // sortable table
+    let rows = active.rows.slice();
+    if (st.sortCol != null) {
+      const ci = st.sortCol, isNum = meta.types[ci] !== 'abc' && meta.types[ci] !== 'date';
+      rows.sort((a, b) => (isNum ? num(a[ci]) - num(b[ci]) : String(a[ci]).localeCompare(String(b[ci]))) * st.sortDir);
+    }
+    const resultCols = active.cols.map((name, ci) => ({
+      name: name.toUpperCase(), t: meta.types[ci],
+      arrow: st.sortCol === ci ? (st.sortDir === 1 ? '▲' : '▼') : '',
+      sort: () => this.setState(prev => ({ sortCol: ci, sortDir: prev.sortCol === ci ? -prev.sortDir : 1 }))
+    }));
+    const resultAggs = active.cols.map((name, ci) => {
+      const t = meta.types[ci];
+      if (t === 'date' || t === 'abc') return rows.length + ' rows';
+      const total = rows.reduce((s, r) => s + num(r[ci]), 0);
+      if (t === 'cur') return '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2 });
+      return total.toLocaleString('en-US');
+    });
+    // derived visualizations
+    const lastCi = active.cols.length - 1;
+    const valCi = meta.types[lastCi] === 'abc' ? 1 : lastCi;
+    const vMax = Math.max(...active.rows.map(r => num(r[valCi])), 1);
+    const vizBarRows = rows.map(r => ({
+      label: r[0], val: r[valCi],
+      w: Math.max(2, Math.round(num(r[valCi]) / vMax * 100))
+    }));
+    const asc = active.rows.slice().reverse();
+    const lineVals = asc.map(r => num(r[valCi]));
+    const lmin = Math.min(...lineVals), lmax = Math.max(...lineVals);
+    const pts = lineVals.map((v, i) => {
+      const x = (i * (600 / (lineVals.length - 1))).toFixed(1);
+      const y = (212 - ((v - lmin) / ((lmax - lmin) || 1)) * 196).toFixed(1);
+      return x + ',' + y;
+    });
+    const vizLinePts = pts.join(' ');
+    const vizLineArea = pts.join(' ') + ' 600,220 0,220';
+    const totalVal = active.rows.reduce((s, r) => s + num(r[valCi]), 0);
+    const vizNumVal = meta.types[valCi] === 'cur'
+      ? '$' + Math.round(totalVal).toLocaleString('en-US')
+      : totalVal.toLocaleString('en-US', { maximumFractionDigits: 1 });
+    // dashboard tiles
+    const q1asc = this.QUERIES.q1.rows.slice().reverse();
+    const revMax = Math.max(...q1asc.map(r => num(r[2])));
+    const revBars = q1asc.map(r => ({
+      day: r[0].slice(8) + '/' + r[0].slice(5, 7),
+      h: Math.max(4, Math.round(num(r[2]) / revMax * 100)),
+      top: '$' + (num(r[2]) / 1000).toFixed(0) + 'k',
+      tip: r[0] + ' — ' + r[2]
+    }));
+    const q3vals = this.QUERIES.q3.rows.slice().reverse().map(r => num(r[1]));
+    const smin = Math.min(...q3vals), smax = Math.max(...q3vals);
+    const spts = q3vals.map((v, i) => (i * (300 / (q3vals.length - 1))).toFixed(1) + ',' + (122 - ((v - smin) / ((smax - smin) || 1)) * 106).toFixed(1));
+    const p95Max = Math.max(...this.QUERIES.q2.rows.map(r => num(r[1])));
+    const p95Bars = this.QUERIES.q2.rows.map(r => ({
+      route: r[0], v: r[1], hits: r[2],
+      w: Math.max(3, Math.round(num(r[1]) / p95Max * 100)),
+      c: num(r[1]) > 400 ? 'var(--warn)' : 'var(--tx)'
+    }));
+    const kpiTiles = [
+      { label: 'Revenue · 7d', val: '$699.0k', delta: '▲ 9.2% vs prev 7d', dc: 'var(--tx2)' },
+      { label: 'Orders · 7d', val: '13,662', delta: '▲ 6.1% vs prev 7d', dc: 'var(--tx2)' },
+      { label: 'Avg order value', val: '$51.17', delta: '▲ $1.40 vs prev 7d', dc: 'var(--tx2)' },
+      { label: 'Signups · 7d', val: '336', delta: '▼ 4.0% vs prev 7d', dc: 'var(--tx3)' }
+    ];
+
+    return {
+      theme,
+      monoAttr: (this.props.statusColor ?? true) ? '0' : '1',
+      toggleTheme: () => setV({ theme: theme === 'dark' ? 'light' : 'dark' }),
+      navItems, crumb, crumbSub,
+      isOverview: view === 'overview',
+      isLogs: view === 'logs',
+      isTraceList: view === 'traces' && !st.traceId,
+      isTraceDetail: view === 'traces' && !!st.traceId,
+      isIssueList: view === 'issues' && !st.issueId,
+      isIssueDetail: view === 'issues' && !!st.issueId,
+      issueChips, issueRows, selIssue, stackFrames, crumbs, issueEvents, tagGroups: this.TAGGROUPS, affected, issueCtx,
+      backToIssues: () => setV({ issueId: null }),
+      openIssueTrace: () => setV({ view: 'traces', traceId: si.trace, traceTab: 'waterfall' }),
+      resolveIssue: () => setIssueState('resolved'),
+      ignoreIssue: () => setIssueState('ignored'),
+      resolveLabel: siState === 'resolved' ? 'Unresolve' : 'Resolve',
+      ignoreLabel: siState === 'ignored' ? 'Unignore' : 'Ignore',
+      isUsers: view === 'users',
+      isQueries: view === 'queries',
+      goTraces: () => setV({ view: 'traces', traceId: null }),
+      goLogs: () => setV({ view: 'logs' }),
+      goUsers: () => setV({ view: 'users' }),
+      goQueries: () => setV({ view: 'queries' }),
+      backToTraces: () => setV({ traceId: null }),
+      openTraceUser: () => setV({ view: 'users', userId: 'u1' }),
+      // overview
+      bars: this.BARS, liveFeed, errFeed, activeUsers, pinnedRows,
+      // logs
+      levelChips, logs, logCount: logsFiltered.length,
+      // traces
+      traceRows, spans, traceTabs,
+      tabWaterfall: st.traceTab === 'waterfall',
+      tabCode: st.traceTab === 'code',
+      tabMemory: st.traceTab === 'memory',
+      tabTraceLogs: st.traceTab === 'logs',
+      execTree, execFrame, execLines, execLocals,
+      execArgs: exFrame.args,
+      execLineNo: selLine.n, execLineCode: selLine.code.trim(),
+      flame, allocs, traceLogs,
+      // users
+      userQuery: st.userQuery,
+      onUserQuery: (e) => setV({ userQuery: e.target.value }),
+      userCount: filtered.length,
+      userRows, userOpen: !!su, selUser,
+      closeUser: () => setV({ userId: null }),
+      // queries / BI
+      queryItems,
+      dashMode: view === 'queries' && inDash,
+      viewMode: view === 'queries' && st.dataMode === 'view',
+      // new-view pipeline
+      newMode: view === 'queries' && st.dataMode === 'new',
+      newOn: st.dataMode === 'new' ? '1' : '0',
+      goNew: () => setV({ dataMode: 'new' }),
+      newSql: st.newSql ?? this.NEW_SQL,
+      onNewSql: (e) => setV({ newSql: e.target.value }),
+      runNew: () => {
+        if (st.running) return;
+        setV({ running: true });
+        setTimeout(() => this.setState({ running: false, newRan: true }), 700);
+      },
+      newRan: st.newRan, newIdle: !st.newRan,
+      inferRows: [
+        { col: 'region', pg: 'text', role: 'DIMENSION', rc: 'var(--tx2)', card: '5 (0.1%)', why: 'low cardinality, non-numeric → group-by axis' },
+        { col: 'orders', pg: 'int8', role: 'MEASURE', rc: 'var(--tx)', card: '5 (100%)', why: 'aggregate of count(*) → sortable, Σ footer' },
+        { col: 'revenue', pg: 'numeric', role: 'MEASURE · $', rc: 'var(--tx)', card: '5 (100%)', why: 'sum over *_cents/100 → currency format' }
+      ],
+      layoutCards: [
+        { id: 'bars', name: 'Bars', glyph: '▤', why: '1 categorical dim + ranked measure', pick: '● AUTO', pickc: 'var(--tx)' },
+        { id: 'table', name: 'Grid', glyph: '▦', why: 'always available — Airtable-style grid', pick: '', pickc: 'var(--tx3)' },
+        { id: 'line', name: 'Line', glyph: '∿', why: 'needs a time column — none found', pick: 'N/A', pickc: 'var(--tx3)' },
+        { id: 'num', name: 'Number', glyph: 'Σ', why: 'single-cell or Σ of one measure', pick: '', pickc: 'var(--tx3)' }
+      ].map(lc => ({
+        ...lc,
+        bc: (st.newViz === lc.id) ? 'var(--tx)' : 'var(--line)',
+        bg: (st.newViz === lc.id) ? 'var(--bg2)' : 'var(--bg)',
+        click: () => setV({ newViz: lc.id })
+      })),
+      newBars: this.NEW_ROWS.map(r => ({
+        label: r[0], val: r[2], sub: r[1] + ' ord',
+        w: Math.max(3, Math.round(r[3] / 38 * 100))
+      })),
+      specJson: '{\n  "source":  "SELECT region, count(*)…",\n  "columns": [\n    { "name": "region",  "type": "text",    "role": "dimension" },\n    { "name": "orders",  "type": "int8",    "role": "measure" },\n    { "name": "revenue", "type": "numeric", "role": "measure", "format": "currency:usd" }\n  ],\n  "layout":  { "viz": "bars", "x": "revenue", "y": "region", "secondary": "orders" },\n  "refresh": "5m",  "target": "replica"\n}',
+      dashOn: inDash ? '1' : '0',
+      goDash: () => setV({ dataMode: 'dashboard' }),
+      openQ1: () => setV({ dataMode: 'view', queryId: 'q1', sql: null, sortCol: null }),
+      openQ2: () => setV({ dataMode: 'view', queryId: 'q2', sql: null, sortCol: null }),
+      openQ3: () => setV({ dataMode: 'view', queryId: 'q3', sql: null, sortCol: null }),
+      kpiTiles, revBars, p95Bars,
+      signupLine: spts.join(' '),
+      signupArea: spts.join(' ') + ' 300,130 0,130',
+      sqlOpen: st.sqlOpen, sqlOn: st.sqlOpen ? '1' : '0',
+      toggleSql: () => setV({ sqlOpen: !st.sqlOpen }),
+      vizChips,
+      vizTable: viz === 'table', vizBar: viz === 'bars', vizLine: viz === 'line', vizNum: viz === 'num',
+      vizBarRows, vizLinePts, vizLineArea,
+      vizLineFirst: asc[0] ? asc[0][0] : '', vizLineLast: asc[asc.length - 1] ? asc[asc.length - 1][0] : '',
+      vizAxis: active.cols[valCi] + ' by ' + active.cols[0] + ' · ' + rows.length + ' rows',
+      vizNumVal, vizNumLabel: 'Σ ' + active.cols[valCi] + ' · ' + active.rows.length + ' rows',
+      sql: st.sql ?? active.sql,
+      onSql: (e) => setV({ sql: e.target.value }),
+      runQuery, running: st.running,
+      queryMeta: st.ranMs ? active.rows.length + ' rows · ' + st.ranMs + 'ms · replica-2' : 'last run 2m ago · ' + active.ms + 'ms',
+      resultCols,
+      resultAggs,
+      resultRows: rows.map((r, i) => ({ n: i + 1, cells: r }))
+    };
+  }
+}
+</script>
+</body>
+</html>

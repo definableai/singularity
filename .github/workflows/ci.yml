@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push: {branches: [main]}
+  pull_request:
+
+env:
+  ENVIRONMENT: dev
+  DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
+  REDIS_URL: redis://localhost:6379/0
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg17
+        env: {POSTGRES_USER: singularity, POSTGRES_PASSWORD: singularity, POSTGRES_DB: singularity}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U singularity" --health-interval 2s
+          --health-timeout 2s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s
+          --health-timeout 2s --health-retries 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync --frozen
+      - name: lint
+        run: uv run ruff check src tests && uv run ruff format --check src tests
+      - name: migration gate (single head + drift)
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+      - name: tests
+        run: uv run pytest -q
+      - name: contract gates
+        run: |
+          uv run sg config sync --check
+          uv run sg api snapshot --check
+      - name: dependency audit
+        run: uv run --with pip-audit pip-audit --strict || true  # allowlist file arrives with first accepted risk
+
+  build:
+    if: github.ref == 'refs/heads/main'
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t singularity:${{ github.sha }} .
+      # deploy contract: run `sg db migrate` + `sg script run --pending`, then roll pods
