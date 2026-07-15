@@ -84,7 +84,9 @@ class JwtProvider:
         if now - self._bad_kids.get(kid, -1e9) < JWKS_NEGATIVE_CACHE_S:
             raise AuthError("unknown signing key")
         stale = now - self._fetched_at > JWKS_TTL_S
-        if (kid not in self._keys or stale) and now - self._last_refresh > JWKS_REFRESH_MIN_INTERVAL_S:
+        if (
+            kid not in self._keys or stale
+        ) and now - self._last_refresh > JWKS_REFRESH_MIN_INTERVAL_S:
             await self._refresh()
         if kid not in self._keys:
             self._bad_kids[kid] = time.monotonic()
@@ -98,9 +100,7 @@ class JwtProvider:
         try:
             async with httpx.AsyncClient(timeout=5) as client:
                 data = (await client.get(self.jwks_url)).raise_for_status().json()
-            self._keys = {
-                k["kid"]: pyjwt.PyJWK(k).key for k in data.get("keys", []) if "kid" in k
-            }
+            self._keys = {k["kid"]: pyjwt.PyJWK(k).key for k in data.get("keys", []) if "kid" in k}
             self._fetched_at = time.monotonic()
         except Exception:
             if not self._keys:

@@ -71,16 +71,18 @@ def test_jwt_not_a_jwt_passes_to_next_provider(monkeypatch):
 
 def test_jwks_mode_requires_iss_aud(monkeypatch):
     with pytest.raises(RuntimeError, match="mandatory"):
-        _jwt_provider(
-            monkeypatch, secret="", jwks_url="https://issuer/jwks", algorithms=["RS256"]
-        )
+        _jwt_provider(monkeypatch, secret="", jwks_url="https://issuer/jwks", algorithms=["RS256"])
 
 
 def test_jwks_url_must_be_https(monkeypatch):
     with pytest.raises(RuntimeError, match="https"):
         _jwt_provider(
-            monkeypatch, secret="", jwks_url="http://issuer/jwks", algorithms=["RS256"],
-            issuer="i", audience="a",
+            monkeypatch,
+            secret="",
+            jwks_url="http://issuer/jwks",
+            algorithms=["RS256"],
+            issuer="i",
+            audience="a",
         )
 
 

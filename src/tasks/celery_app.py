@@ -121,7 +121,9 @@ def submit_task(name: str, *args, immediate: bool = False, **kwargs):
         except Exception as e:
             from src.common.logger import log
 
-            log.error(f"post-commit task submit FAILED: {name} args_digest={hash(str(args))}: {e!r}")
+            log.error(
+                f"post-commit task submit FAILED: {name} args_digest={hash(str(args))}: {e!r}"
+            )
             raise
 
     if not immediate and (j := current()) is not None:

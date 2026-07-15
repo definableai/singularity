@@ -157,7 +157,9 @@ def _ser(value: Any) -> Any:
             head = [_ser(v) for i, v in enumerate(value) if i < MAX_CONTAINER_HEAD]
             return {"~type": type(value).__name__, "len": len(value), "head": head}
         if isinstance(value, dict):
-            head = {str(k): _ser(v) for i, (k, v) in enumerate(value.items()) if i < MAX_CONTAINER_HEAD}
+            head = {
+                str(k): _ser(v) for i, (k, v) in enumerate(value.items()) if i < MAX_CONTAINER_HEAD
+            }
             return {"~type": "dict", "len": len(value), "head": head}
         r = repr(value)
         return f"<{type(value).__name__}> {r[:MAX_STR]}"
@@ -231,7 +233,9 @@ def _close(code, retval, exc: str | None):
         node = j.frame_map.pop(id(frame), None)
         if node is None:
             return
-        node["duration_ms"] = round((time.perf_counter() - node.pop("_t0", time.perf_counter())) * 1000, 3)
+        node["duration_ms"] = round(
+            (time.perf_counter() - node.pop("_t0", time.perf_counter())) * 1000, 3
+        )
         node.pop("_prev", None)
         if exc is not None:
             node["exc"] = exc

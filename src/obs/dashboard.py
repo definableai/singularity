@@ -177,7 +177,9 @@ async def _stat_tiles() -> dict[str, str]:
         "0.42%": f"{(errs / total * 100):.2f}%" if total else "0.00%",
         "101 events · 3 unresolved": f"{issues[0]['events']} events · {issues[0]['open']} unresolved",
         "v0.9.2 · us-east": f"singularity · {settings.environment}",
-        "All systems nominal": "All systems nominal" if not issues[0]["open"] else f"{issues[0]['open']} open issues",
+        "All systems nominal": "All systems nominal"
+        if not issues[0]["open"]
+        else f"{issues[0]['open']} open issues",
     }
 
 
@@ -222,6 +224,7 @@ async def vendor(name: str) -> Response:
 
 # ---------- bootstrap: everything the list views need, proto-shaped ----------
 
+
 @router.get("/api/bootstrap", include_in_schema=False)
 async def bootstrap():
     trace_rows = await _rows(
@@ -237,15 +240,23 @@ async def bootstrap():
         from src.obs import dataviews as dv
 
         try:
-            uq = await dv.run_query(settings.dataviews_db_url, settings.dashboard_users_sql, limit=200)
+            uq = await dv.run_query(
+                settings.dataviews_db_url, settings.dashboard_users_sql, limit=200
+            )
             names = [c[0] for c in uq["cols"]]
 
             def col(row, key):
                 return str(row[names.index(key)]) if key in names else ""
 
             user_rows = [
-                {"principal_id": col(r, "id") or col(r, "email"), "reqs": 0, "last_seen": None,
-                 "_email": col(r, "email"), "_name": col(r, "name"), "_created": col(r, "created_at")}
+                {
+                    "principal_id": col(r, "id") or col(r, "email"),
+                    "reqs": 0,
+                    "last_seen": None,
+                    "_email": col(r, "email"),
+                    "_name": col(r, "name"),
+                    "_created": col(r, "created_at"),
+                }
                 for r in uq["rows"]
             ]
         except Exception:
@@ -281,7 +292,9 @@ async def bootstrap():
         "SELECT ts, kind, level, name, message, status, duration_ms FROM singularity.records "
         "WHERE kind IN ('journey','log') ORDER BY ts DESC LIMIT 12"
     )
-    view_rows = await _rows("SELECT id, name, spec FROM singularity.view ORDER BY created_at LIMIT 20")
+    view_rows = await _rows(
+        "SELECT id, name, spec FROM singularity.view ORDER BY created_at LIMIT 20"
+    )
     queries = {}
     for i, r in enumerate(view_rows):
         spec = r["spec"] if isinstance(r["spec"], dict) else orjson.loads(r["spec"])
@@ -317,7 +330,9 @@ async def proto_trace(trace_id: str):
     if not rows:
         return JSONResponse({"error": "not found"}, status_code=404)
     r = rows[0]
-    journey = r["attributes"] if isinstance(r["attributes"], dict) else orjson.loads(r["attributes"])
+    journey = (
+        r["attributes"] if isinstance(r["attributes"], dict) else orjson.loads(r["attributes"])
+    )
     log_rows = await _rows(
         "SELECT ts, level, name, message FROM singularity.records "
         "WHERE kind='log' AND trace_id=:tid ORDER BY ts LIMIT 100",
@@ -394,10 +409,12 @@ async def proto_query(body: dict):
     # proto shapes: inferRows table + 4-tuple bar rows [label, sub, value, w*0.38]
     infer_rows = [
         {
-            "col": c["col"], "pg": c["pg"],
+            "col": c["col"],
+            "pg": c["pg"],
             "role": c["role"].upper() + (" · $" if c["format"] == "currency" else ""),
             "rc": "var(--tx)" if c["role"] == "measure" else "var(--tx2)",
-            "card": c["card"], "why": c["why"],
+            "card": c["card"],
+            "why": c["why"],
         }
         for c in inferred
     ]
@@ -410,13 +427,24 @@ async def proto_query(body: dict):
     numeric = [float(r[vi] or 0) for r in result["rows"][:12]] or [1]
     peak = max(numeric) or 1
     bar_rows = [
-        [str(r[li]), "", f"{r[vi]:,}" if isinstance(r[vi], (int, float)) else str(r[vi]),
-         round(float(r[vi] or 0) / peak * 38)]
+        [
+            str(r[li]),
+            "",
+            f"{r[vi]:,}" if isinstance(r[vi], (int, float)) else str(r[vi]),
+            round(float(r[vi] or 0) / peak * 38),
+        ]
         for r in result["rows"][:12]
     ]
     spec = {
         "query": {"sql": sql},
-        "columns": {c["col"]: {"type": c["pg"], "role": c["role"], **({"format": c["format"]} if c["format"] else {})} for c in inferred},
+        "columns": {
+            c["col"]: {
+                "type": c["pg"],
+                "role": c["role"],
+                **({"format": c["format"]} if c["format"] else {}),
+            }
+            for c in inferred
+        },
         "chart": {"kind": suggestion["kind"], "encoding": enc},
         "limits": {"rows": 1000},
     }

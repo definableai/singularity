@@ -81,7 +81,9 @@ class CoreLayer:
                 # happens with the rest of the envelope on the flusher (05)
                 if j.tier >= 1 and scope["method"] not in ("GET", "HEAD") and chunk:
                     if len(j.body) < journey.BODY_CAP_BYTES:
-                        j.body += chunk[: journey.BODY_CAP_BYTES - len(j.body)].decode(errors="replace")
+                        j.body += chunk[: journey.BODY_CAP_BYTES - len(j.body)].decode(
+                            errors="replace"
+                        )
             return message
 
         async def tracked_send(message):

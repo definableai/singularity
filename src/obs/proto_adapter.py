@@ -41,6 +41,7 @@ def _source_line(file: str, n: int) -> str:
 
 # ---------- bootstrap shapes ----------
 
+
 def traces(rows) -> list[dict]:
     out = []
     for r in rows:
@@ -98,16 +99,33 @@ def users(rows) -> list[dict]:
         }
         for r in rows
         if r["principal_id"]
-    ] or [{
-        "id": "none", "email": "no authenticated requests yet", "name": "—", "role": "—",
-        "status": "—", "reqs": "0", "lastSeen": "", "created": "",
-    }]  # proto invariant: users view falls back to USERS[0]
+    ] or [
+        {
+            "id": "none",
+            "email": "no authenticated requests yet",
+            "name": "—",
+            "role": "—",
+            "status": "—",
+            "reqs": "0",
+            "lastSeen": "",
+            "created": "",
+        }
+    ]  # proto invariant: users view falls back to USERS[0]
 
 
 PLACEHOLDER_ISSUE = {
-    "id": "none", "type": "NoIssues", "msg": "No errors recorded yet", "culprit": "",
-    "events": "0", "users": "0", "first": "", "last": "", "state": "resolved",
-    "lvl": "info", "trace": "", "spark": [0] * 12,
+    "id": "none",
+    "type": "NoIssues",
+    "msg": "No errors recorded yet",
+    "culprit": "",
+    "events": "0",
+    "users": "0",
+    "first": "",
+    "last": "",
+    "state": "resolved",
+    "lvl": "info",
+    "trace": "",
+    "spark": [0] * 12,
 }
 
 
@@ -182,22 +200,40 @@ def bars(minute_rows) -> list[dict]:
 
 # ---------- trace detail shapes ----------
 
-_KIND_MAP = {"sql": "db", "http": "http", "task_submit": "http", "dependency": "mw",
-             "exception": "cpu", "endpoint": "cpu"}
+_KIND_MAP = {
+    "sql": "db",
+    "http": "http",
+    "task_submit": "http",
+    "dependency": "mw",
+    "exception": "cpu",
+    "endpoint": "cpu",
+}
 
 
 def spans(journey: dict, name: str, status, dur) -> list[dict]:
     total = float(journey.get("duration_ms") or dur or 1)
     out = [
-        {"id": "s_root", "p": None, "name": f"{journey.get('method', '')} {journey.get('path', name)}",
-         "kind": "req", "a": 0, "b": round(total)}
+        {
+            "id": "s_root",
+            "p": None,
+            "name": f"{journey.get('method', '')} {journey.get('path', name)}",
+            "kind": "req",
+            "a": 0,
+            "b": round(total),
+        }
     ]
     for i, s in enumerate(journey.get("steps", [])):
         a = float(s.get("t", 0))
         b = a + float(s.get("duration_ms") or 0.5)
         out.append(
-            {"id": f"st{i}", "p": "s_root", "name": s.get("name", s["kind"])[:80],
-             "kind": _KIND_MAP.get(s["kind"], "cpu"), "a": round(a, 1), "b": round(min(b, total), 1)}
+            {
+                "id": f"st{i}",
+                "p": "s_root",
+                "name": s.get("name", s["kind"])[:80],
+                "kind": _KIND_MAP.get(s["kind"], "cpu"),
+                "a": round(a, 1),
+                "b": round(min(b, total), 1),
+            }
         )
 
     def walk(nodes, parent):
@@ -207,9 +243,14 @@ def spans(journey: dict, name: str, status, dur) -> list[dict]:
             b = a + float(n.get("duration_ms") or 0.5)
             slow = (n.get("duration_ms") or 0) > total * 0.5
             out.append(
-                {"id": sid, "p": parent if parent != "s_root_calls" else "s_root",
-                 "name": n["name"][:80], "kind": "slow" if slow else "cpu",
-                 "a": round(a, 1), "b": round(min(b, total), 1)}
+                {
+                    "id": sid,
+                    "p": parent if parent != "s_root_calls" else "s_root",
+                    "name": n["name"][:80],
+                    "kind": "slow" if slow else "cpu",
+                    "a": round(a, 1),
+                    "b": round(min(b, total), 1),
+                }
             )
             walk(n.get("children", []), sid)
 
@@ -236,7 +277,9 @@ def exec_tree(journey: dict) -> tuple[dict, list[dict]]:
                         "n": entry["n"],
                         "code": _source_line(n.get("file", ""), entry["n"]),
                         "ms": f"{entry.get('t', '')}",
-                        "locals": [{"k": k, "v": _val(v)} for k, v in (entry.get("vars") or {}).items()],
+                        "locals": [
+                            {"k": k, "v": _val(v)} for k, v in (entry.get("vars") or {}).items()
+                        ],
                     }
                 )
             exec_map[fid] = {
@@ -255,14 +298,22 @@ def exec_tree(journey: dict) -> tuple[dict, list[dict]]:
     if not exec_map:
         # proto invariants: EXEC.fx1 fallback + every frame has >=1 line
         exec_map["fx0"] = {
-            "fn": journey.get("path", "request"), "file": "", "dur": f"{journey.get('duration_ms', 0)}ms",
-            "args": [], "argsFull": "()", "ret": "",
-            "lines": [{"n": 0, "code": "(no user code recorded for this journey)", "ms": "", "locals": []}],
+            "fn": journey.get("path", "request"),
+            "file": "",
+            "dur": f"{journey.get('duration_ms', 0)}ms",
+            "args": [],
+            "argsFull": "()",
+            "ret": "",
+            "lines": [
+                {"n": 0, "code": "(no user code recorded for this journey)", "ms": "", "locals": []}
+            ],
         }
         tree.append({"fid": "fx0", "d": 0})
     for f in exec_map.values():
         if not f["lines"]:
-            f["lines"] = [{"n": 0, "code": "(call recorded at T1 — line capture off)", "ms": "", "locals": []}]
+            f["lines"] = [
+                {"n": 0, "code": "(call recorded at T1 — line capture off)", "ms": "", "locals": []}
+            ]
     if "fx1" not in exec_map:  # default state.execSel is 'fx1'
         exec_map["fx1"] = exec_map["fx0"]
     return exec_map, tree
@@ -280,8 +331,15 @@ def crumbs(log_rows, journey_ts) -> list[dict]:
         delta = (r["ts"] - journey_ts).total_seconds()
         cat = (r["name"] or "app").split(".")[-1]
         lvl = {"ERROR": "error", "WARNING": "warn"}.get(r["level"], "info")
-        out.append({"ts": f"{delta:+.2f}s", "cat": cat, "msg": (r["message"] or "")[:140],
-                    "extra": "", "lvl": lvl})
+        out.append(
+            {
+                "ts": f"{delta:+.2f}s",
+                "cat": cat,
+                "msg": (r["message"] or "")[:140],
+                "extra": "",
+                "lvl": lvl,
+            }
+        )
     return out
 
 
@@ -302,8 +360,13 @@ def stack(trace_text: str, code_roots: list[str]) -> list[dict]:
             if code:
                 ctx.append({"n": n, "code": code, **({"err": True} if n == line_no else {})})
         frames.append(
-            {"fn": fn, "loc": f"{rel}:{line_no}", "tag": "IN APP" if in_app else "VENDOR",
-             "inApp": in_app, "ctx": ctx}
+            {
+                "fn": fn,
+                "loc": f"{rel}:{line_no}",
+                "tag": "IN APP" if in_app else "VENDOR",
+                "inApp": in_app,
+                "ctx": ctx,
+            }
         )
     frames.reverse()  # proto shows most-recent first
     return frames
@@ -311,7 +374,12 @@ def stack(trace_text: str, code_roots: list[str]) -> list[dict]:
 
 def issue_events(rows) -> list[dict]:
     return [
-        {"id": f"evt_{r['trace_id'][-8:]}" if r["trace_id"] else "evt", "user": r["principal_id"] or "—",
-         "dur": f"{r['duration_ms'] or 0}ms", "ts": _hms(r["ts"]), "trace": r["trace_id"] or ""}
+        {
+            "id": f"evt_{r['trace_id'][-8:]}" if r["trace_id"] else "evt",
+            "user": r["principal_id"] or "—",
+            "dur": f"{r['duration_ms'] or 0}ms",
+            "ts": _hms(r["ts"]),
+            "trace": r["trace_id"] or "",
+        }
         for r in rows
     ]

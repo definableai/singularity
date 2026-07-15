@@ -58,7 +58,9 @@ def discover(package_dir: str = "src/scripts") -> list[Discovered]:
         if cls.kind == "once" and order < 0:
             raise ScriptError(f"{path}: `once` scripts need a numeric prefix (0001_...)")
         found.append(
-            Discovered(path.stem, cls.kind, hashlib.sha256(path.read_bytes()).hexdigest(), cls, order)
+            Discovered(
+                path.stem, cls.kind, hashlib.sha256(path.read_bytes()).hexdigest(), cls, order
+            )
         )
     return found
 
@@ -126,8 +128,13 @@ async def run_script(s: Discovered, ctx: Context, triggered_by: str, force: bool
                         "VALUES (:n, :k, :c, 'running', :t, :f, :h, :p, :tr) RETURNING id"
                     ),
                     {
-                        "n": s.name, "k": s.kind, "c": s.checksum, "t": triggered_by,
-                        "f": force, "h": socket.gethostname(), "p": os.getpid(),
+                        "n": s.name,
+                        "k": s.kind,
+                        "c": s.checksum,
+                        "t": triggered_by,
+                        "f": force,
+                        "h": socket.gethostname(),
+                        "p": os.getpid(),
                         "tr": (j := jmod.start("SCRIPT", f"script:{s.name}", "")).trace_id,
                     },
                 )
@@ -146,7 +153,9 @@ async def run_script(s: Discovered, ctx: Context, triggered_by: str, force: bool
                 await asyncio.sleep(5)
                 async with engine.begin() as conn:
                     await conn.execute(
-                        text("UPDATE singularity.script_run SET finished_at=now() WHERE id=:id AND status='running'"),
+                        text(
+                            "UPDATE singularity.script_run SET finished_at=now() WHERE id=:id AND status='running'"
+                        ),
                         {"id": run_id},
                     )
 
@@ -168,7 +177,10 @@ async def run_script(s: Discovered, ctx: Context, triggered_by: str, force: bool
                         "finished_at=now(), duration_ms=:d WHERE id=:id"
                     ),
                     {
-                        "s": status, "e": error, "d": duration_ms, "id": run_id,
+                        "s": status,
+                        "e": error,
+                        "d": duration_ms,
+                        "id": run_id,
                         "o": orjson.dumps(output).decode() if output is not None else None,
                     },
                 )

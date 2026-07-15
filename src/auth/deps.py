@@ -1,7 +1,7 @@
 """Auth() dependency (03): provider chain from settings, first match wins.
 
-    user: Principal = Depends(Auth())            # full chain
-    user: Principal = Depends(Auth("api_key"))   # pin one provider
+user: Principal = Depends(Auth())            # full chain
+user: Principal = Depends(Auth("api_key"))   # pin one provider
 """
 
 import importlib
@@ -52,7 +52,9 @@ class Auth:
         for name in names:
             provider = _provider(name)
             t0 = time.perf_counter()
-            principal = await provider.authenticate(request)  # AuthError propagates: its credential, invalid
+            principal = await provider.authenticate(
+                request
+            )  # AuthError propagates: its credential, invalid
             if principal is not None:
                 principal_id_var.set(principal.id)
                 if (j := journey.current()) is not None:

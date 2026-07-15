@@ -23,7 +23,9 @@ class AppError(Exception):
         if "code" not in cls.__dict__:
             raise TypeError(f"{cls.__name__} must declare a 'code'")
         if cls.code in _codes:
-            raise TypeError(f"duplicate error code {cls.code!r}: {cls.__name__} vs {_codes[cls.code].__name__}")
+            raise TypeError(
+                f"duplicate error code {cls.code!r}: {cls.__name__} vs {_codes[cls.code].__name__}"
+            )
         _codes[cls.code] = cls
 
 

@@ -1,18 +1,17 @@
 """PG store + fingerprint + RED rollup tests."""
 
-
 import pytest
 
 from src.obs.store import fingerprint
 from tests.test_db import _pg_reachable
 
-TRACE = '''Traceback (most recent call last):
+TRACE = """Traceback (most recent call last):
   File "/app/src/services/orders/service.py", line 42, in post_create
     total = compute(order)
   File "/app/src/services/orders/pricing.py", line 9, in compute
     raise ValueError("negative total")
 ValueError: negative total
-'''
+"""
 
 
 def test_fingerprint_stable_across_line_changes():
@@ -65,10 +64,15 @@ def test_store_writes_and_issue_lifecycle():
 
     def journey_envelope(trace_id):
         return {
-            "kind": "journey", "ts": ts, "message": "POST /orders",
+            "kind": "journey",
+            "ts": ts,
+            "message": "POST /orders",
             "ctx": {"trace_id": trace_id, "request_id": "req_1", "principal_id": "u1"},
             "extra": {
-                "path": "/orders", "status": 500, "duration_ms": 12.5, "error": "ValueError: negative total",
+                "path": "/orders",
+                "status": 500,
+                "duration_ms": 12.5,
+                "error": "ValueError: negative total",
                 "steps": [{"kind": "exception", "name": "ValueError", "data": {"trace": TRACE}}],
             },
         }
@@ -82,7 +86,8 @@ def test_store_writes_and_issue_lifecycle():
 
         cur.execute(
             "SELECT state, event_count, cardinality(sample_trace_ids) "
-            "FROM singularity.issue WHERE fingerprint=%s", (fp,),
+            "FROM singularity.issue WHERE fingerprint=%s",
+            (fp,),
         )
         state, count, samples = cur.fetchone()
         assert (state, count, samples) == ("unresolved", 2, 2)
@@ -95,7 +100,8 @@ def test_store_writes_and_issue_lifecycle():
 
         cur.execute(
             "SELECT count(*) FROM singularity.records "
-            "WHERE fingerprint=%s AND kind='journey' AND trace_id LIKE %s", (fp, f"trc_{run}%"),
+            "WHERE fingerprint=%s AND kind='journey' AND trace_id LIKE %s",
+            (fp, f"trc_{run}%"),
         )
         assert cur.fetchone()[0] == 3
 
@@ -108,8 +114,15 @@ def test_store_survives_pg_bounce():
     from src.obs.store import PGStore
 
     store = PGStore(settings.database_url.replace("+asyncpg", ""))
-    good = {"kind": "log", "ts": "2026-07-13T10:00:00+00:00", "level": "INFO",
-            "message": "x", "ctx": {}, "extra": {}, "logger": {"module": "m"}}
+    good = {
+        "kind": "log",
+        "ts": "2026-07-13T10:00:00+00:00",
+        "level": "INFO",
+        "message": "x",
+        "ctx": {},
+        "extra": {},
+        "logger": {"module": "m"},
+    }
     store.write([good])
     assert store.write_errors == 0
     store._conn.close()  # simulate dropped connection
