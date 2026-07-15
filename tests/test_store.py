@@ -1,9 +1,18 @@
 """PG store + fingerprint + RED rollup tests."""
 
+from datetime import datetime, timezone
+
 import pytest
 
 from src.obs.store import fingerprint
 from tests.test_db import _pg_reachable
+
+
+def _now_ts() -> str:
+    # `records` is RANGE-partitioned by ts and ensure_schema only provisions today +
+    # tomorrow (05/08) — a hardcoded date stops having a partition the next day.
+    return datetime.now(timezone.utc).isoformat()
+
 
 TRACE = """Traceback (most recent call last):
   File "/app/src/services/orders/service.py", line 42, in post_create
@@ -59,7 +68,7 @@ def test_store_writes_and_issue_lifecycle():
 
     dsn = settings.database_url.replace("+asyncpg", "")
     store = PGStore(dsn)
-    ts = "2026-07-13T10:00:00+00:00"
+    ts = _now_ts()
     run = uuid.uuid4().hex[:8]  # records accumulate across suite runs — unique ids
 
     def journey_envelope(trace_id):
@@ -116,7 +125,7 @@ def test_store_survives_pg_bounce():
     store = PGStore(settings.database_url.replace("+asyncpg", ""))
     good = {
         "kind": "log",
-        "ts": "2026-07-13T10:00:00+00:00",
+        "ts": _now_ts(),
         "level": "INFO",
         "message": "x",
         "ctx": {},
