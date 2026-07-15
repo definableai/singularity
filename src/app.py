@@ -2,6 +2,7 @@
 
 import sys
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -114,8 +115,10 @@ def create_app() -> FastAPI:
         log.warning("Observatory disabled: set DASHBOARD_TOKEN to enable /__obs")
 
     # add_middleware: last added = outermost. User escape-hatch runs inside CoreLayer.
+    # cast: the contract is structural (pure ASGI class, core/middleware.py), and
+    # Starlette's matching factory protocol is private — nothing public to declare.
     for mw in reversed(discover_middlewares()):
-        app.add_middleware(mw)
+        app.add_middleware(cast(Any, mw))
     app.add_middleware(
         CoreLayer,
         timeout_s=settings.request_timeout_s,
