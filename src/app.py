@@ -185,3 +185,7 @@ def main() -> None:
         forwarded_allow_ips=settings.forwarded_allow_ips,
         timeout_graceful_shutdown=settings.shutdown_grace_s,
     )
+
+
+if __name__ == "__main__":
+    main()
