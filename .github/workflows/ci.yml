@@ -1,10 +1,18 @@
-name: ci
+name: CI
+
+# Orchestrator. Each suite is a reusable workflow in .github/workflows/ci-*.yml;
+# shared setup is the composite action in .github/actions/setup-python-env.
 
 on:
-  push: {branches: [main]}
+  push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  # Manual re-trigger from the UI or `gh workflow run`, for when a run is lost to a
+  # cancellation or an infra blip and main's HEAD is left without one.
+  workflow_dispatch:
 
-# Any permissions block resets unlisted scopes to none. Nothing here writes to the repo.
+# Any permissions block resets unlisted scopes to none. CI only reads the repo.
 permissions:
   contents: read
 
@@ -15,76 +23,47 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Not a dependency of `test`: gating tests behind lint serialises a fast job in front of
-  # a slow one for no correctness gain. They race; both must pass.
+  # lint deliberately does not gate test: that serialises a fast job in front of a slow
+  # one for no correctness gain. They race; both must pass.
   lint:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: ./.github/actions/setup-python-env
-      - name: ruff check
-        run: uv run ruff check src tests
-      - name: ruff format
-        run: uv run ruff format --check src tests
+    name: Lint
+    uses: ./.github/workflows/ci-lint.yml
 
   test:
-    runs-on: ubuntu-latest
-    env:
-      ENVIRONMENT: dev
-      DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
-      REDIS_URL: redis://localhost:6379/0
-    services:
-      # Job runs on the runner host, so ports must be mapped and reached via localhost.
-      postgres:
-        image: pgvector/pgvector:pg17
-        env: {POSTGRES_USER: singularity, POSTGRES_PASSWORD: singularity, POSTGRES_DB: singularity}
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U singularity" --health-interval 2s
-          --health-timeout 2s --health-retries 15
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping" --health-interval 2s
-          --health-timeout 2s --health-retries 15
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: ./.github/actions/setup-python-env
+    name: Test
+    uses: ./.github/workflows/ci-test.yml
 
-      # alembic owns `public`; the `singularity` schema is provisioned by the test
-      # session fixture (tests/conftest.py), matching ensure_schema() at app boot.
-      - name: migration gate (single head + drift)
-        run: |
-          uv run alembic upgrade head
-          uv run alembic check
-
-      - name: tests
-        run: uv run pytest -q
-
-      # Generated artefacts must match their source, or the contract has drifted.
-      - name: contract gates
-        run: |
-          uv run sg config sync --check
-          uv run sg api snapshot --check
-
-  # Advisory: reports known CVEs without blocking the merge. Make this blocking once an
-  # allowlist exists for accepted risks.
   audit:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - uses: ./.github/actions/setup-python-env
-      - name: pip-audit
-        continue-on-error: true
-        run: uv run --with pip-audit pip-audit --strict
+    name: Audit
+    uses: ./.github/workflows/ci-audit.yml
 
   build:
+    name: Build
     if: github.ref == 'refs/heads/main'
     needs: [lint, test]
+    uses: ./.github/workflows/ci-build.yml
+
+  # The one required status check — point branch protection at this, not the suites.
+  # A skipped job (build on a PR) must not fail it; a failed or cancelled one must.
+  # `audit` is advisory and swallows its own failure, so it can only report success.
+  ci-status:
+    name: CI status
+    if: always()
+    needs: [lint, test, audit, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-      - name: docker build
-        run: docker build -t singularity:${{ github.sha }} .
-      # Deploy contract: `sg db migrate && sg script run --pending`, then roll pods.
+      - name: Check that no required job failed
+        env:
+          RESULTS: ${{ toJson(needs) }}
+        run: |
+          echo "$RESULTS"
+          bad=$(echo "$RESULTS" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          print(','.join(k for k, v in data.items() if v['result'] not in ('success', 'skipped')))
+          ")
+          if [ -n "$bad" ]; then
+            echo "::error::Failing or cancelled jobs: $bad"
+            exit 1
+          fi

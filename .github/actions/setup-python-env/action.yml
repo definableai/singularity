@@ -13,6 +13,12 @@ inputs:
     description: "Extra arguments for `uv sync`."
     required: false
     default: ""
+  save-cache:
+    description: >-
+      Whether this job writes the uv cache. Parallel jobs share one cache key, so
+      exactly one should save; the rest restore only.
+    required: false
+    default: "true"
 
 outputs:
   uv-version:
@@ -30,6 +36,7 @@ runs:
       uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
       with:
         python-version: ${{ inputs.python-version }}
+        save-cache: ${{ inputs.save-cache }}
         # uv.lock alone determines the dependency set; keying on pyproject.toml too
         # would miss the cache on unrelated edits (version bumps, tool config).
         cache-dependency-glob: "uv.lock"

@@ -1,0 +1,59 @@
+name: CI Test
+
+# Reusable workflow: migration gate, pytest, and the generated-artefact contract
+# gates. Called by ci.yml.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: dev
+      DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
+      REDIS_URL: redis://localhost:6379/0
+    services:
+      # The job runs on the runner host, so ports must be mapped and reached over
+      # localhost. A container job would use the service label as hostname instead.
+      postgres:
+        image: pgvector/pgvector:pg17
+        env: {POSTGRES_USER: singularity, POSTGRES_PASSWORD: singularity, POSTGRES_DB: singularity}
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U singularity" --health-interval 2s
+          --health-timeout 2s --health-retries 15
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s
+          --health-timeout 2s --health-retries 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python + uv
+        uses: ./.github/actions/setup-python-env
+        with:
+          save-cache: false # ci-lint.yml writes it
+
+      # alembic owns `public`; the `singularity` schema is provisioned by the test
+      # session fixture (tests/conftest.py), mirroring ensure_schema() at app boot.
+      - name: Migration gate (single head + drift)
+        run: |
+          uv run alembic upgrade head
+          uv run alembic check
+
+      - name: Run test suite
+        run: uv run pytest -q
+
+      # Generated artefacts must match their source, or the contract has drifted.
+      - name: Contract gates (.env.template, openapi.json)
+        run: |
+          uv run sg config sync --check
+          uv run sg api snapshot --check
