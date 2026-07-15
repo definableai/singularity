@@ -13,9 +13,11 @@ from pathlib import Path
 
 import orjson
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, ORJSONResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import text
 from starlette.responses import StreamingResponse
+
+from src.core.responses import JSONResponse
 
 from src.config.settings import settings
 from src.core.errors import AppError
@@ -291,7 +293,7 @@ async def bootstrap():
             "rows": spec.get("last_rows", []),
         }
     open_issues = [r for r in issue_rows if r["state"] in ("unresolved", "regressed")]
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "TRACES": pa.traces(trace_rows),
             "LOGS": pa.logs(log_rows),
@@ -313,7 +315,7 @@ async def proto_trace(trace_id: str):
         {"tid": trace_id},
     )
     if not rows:
-        return ORJSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     r = rows[0]
     journey = r["attributes"] if isinstance(r["attributes"], dict) else orjson.loads(r["attributes"])
     log_rows = await _rows(
@@ -322,7 +324,7 @@ async def proto_trace(trace_id: str):
         {"tid": trace_id},
     )
     exec_map, tree = pa.exec_tree(journey)
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "SPANS": pa.spans(journey, r["name"], r["status"], r["duration_ms"]),
             "EXEC": exec_map,
@@ -340,7 +342,7 @@ async def proto_issue(fingerprint: str):
         {"f": fingerprint},
     )
     if not rows:
-        return ORJSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     issue = rows[0]
     events = await _rows(
         "SELECT ts, trace_id, principal_id, duration_ms FROM singularity.records "
@@ -360,7 +362,7 @@ async def proto_issue(fingerprint: str):
                 if step.get("kind") == "exception":
                     trace_text = step.get("data", {}).get("trace", "")
                     break
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "STACK": pa.stack(trace_text, settings.trace_code_roots),
             "TAGGROUPS": [],  # release/region tags arrive when the app declares them
@@ -375,17 +377,17 @@ async def proto_query(body: dict):
     from src.obs import dataviews as dv
 
     if not settings.dataviews_db_url:
-        return ORJSONResponse(
+        return JSONResponse(
             {"error": "data views disabled — run `sg db grant-readonly`, set DATAVIEWS_DB_URL"},
             status_code=409,
         )
     sql = (body.get("sql") or "").strip().rstrip(";")
     if not sql:
-        return ORJSONResponse({"error": "empty sql"}, status_code=422)
+        return JSONResponse({"error": "empty sql"}, status_code=422)
     try:
         result = await dv.run_query(settings.dataviews_db_url, sql, limit=1000)
     except dv.DataViewsError as e:
-        return ORJSONResponse({"error": str(e)}, status_code=400)
+        return JSONResponse({"error": str(e)}, status_code=400)
     inferred = dv.infer(result["cols"], result["rows"])
     suggestion = dv.suggest(inferred, len(result["rows"]))
 
@@ -418,7 +420,7 @@ async def proto_query(body: dict):
         "chart": {"kind": suggestion["kind"], "encoding": enc},
         "limits": {"rows": 1000},
     }
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "rows": bar_rows,
             "inferRows": infer_rows,
@@ -439,7 +441,7 @@ async def save_view(body: dict):
     name = (body.get("name") or "Untitled view").strip()[:80]
     spec = body.get("spec")
     if not isinstance(spec, dict) or "query" not in spec:
-        return ORJSONResponse({"error": "spec with a query is required"}, status_code=422)
+        return JSONResponse({"error": "spec with a query is required"}, status_code=422)
     view_id = _re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "view"
     spec["last_rows"] = body.get("rows", [])[:10]
     spec["meta"] = f"saved · {body.get('row_count', 0)} rows"
@@ -453,14 +455,14 @@ async def save_view(body: dict):
             ),
             {"i": view_id, "n": name, "s": orjson.dumps(spec).decode()},
         )
-    return ORJSONResponse({"ok": True, "id": view_id})
+    return JSONResponse({"ok": True, "id": view_id})
 
 
 @router.post("/api/issues/{fingerprint}/state", include_in_schema=False)
 async def set_issue_state(fingerprint: str, body: dict):
     new_state = body.get("state")
     if new_state not in ("resolved", "ignored", "unresolved"):
-        return ORJSONResponse({"error": "state must be resolved|ignored|unresolved"}, status_code=422)
+        return JSONResponse({"error": "state must be resolved|ignored|unresolved"}, status_code=422)
     from src.database.engine import get_engine
 
     async with get_engine().begin() as conn:
@@ -468,7 +470,7 @@ async def set_issue_state(fingerprint: str, body: dict):
             text("UPDATE singularity.issue SET state=:s WHERE fingerprint=:f"),
             {"s": new_state, "f": fingerprint},
         )
-    return ORJSONResponse({"ok": True})
+    return JSONResponse({"ok": True})
 
 
 @router.get("/api/tail", include_in_schema=False)
@@ -476,7 +478,7 @@ async def tail(request: Request, kinds: str = "log,journey"):
     """SSE live tail — polls the shared PG store (multi-worker safe by construction)."""
     global _tail_connections
     if _tail_connections >= TAIL_MAX_CONNECTIONS:
-        return ORJSONResponse({"error": "too many tail connections"}, status_code=429)
+        return JSONResponse({"error": "too many tail connections"}, status_code=429)
     kind_list = [k.strip() for k in kinds.split(",") if k.strip()]
 
     async def stream():

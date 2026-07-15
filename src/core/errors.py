@@ -3,9 +3,9 @@
 import traceback
 
 from fastapi import FastAPI, Request
-from fastapi.responses import ORJSONResponse
 
 from src.core.asgi import request_id_var
+from src.core.responses import JSONResponse
 
 _codes: dict[str, type] = {}
 
@@ -34,8 +34,8 @@ class NotFoundError(AppError):
     status = 404
 
 
-def envelope(code: str, message: str, status: int) -> ORJSONResponse:
-    return ORJSONResponse(
+def envelope(code: str, message: str, status: int) -> JSONResponse:
+    return JSONResponse(
         {"error": {"code": code, "message": message, "request_id": request_id_var.get("")}},
         status_code=status,
     )

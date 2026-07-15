@@ -77,7 +77,7 @@ def create_app() -> FastAPI:
         # timeout — must not hang in the pool-checkout queue (02).
         import asyncio
 
-        from fastapi.responses import ORJSONResponse
+        from src.core.responses import JSONResponse
 
         checks: dict[str, str] = {}
         if settings.database_url:
@@ -101,7 +101,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             checks["redis"] = f"fail: {type(e).__name__}"
         ready = all(v == "ok" for v in checks.values())
-        return ORJSONResponse({"ready": ready, **checks}, status_code=200 if ready else 503)
+        return JSONResponse({"ready": ready, **checks}, status_code=200 if ready else 503)
 
     app.state.route_report = register_services(app, ctx)
     register_handlers(app, dev=settings.is_dev)
