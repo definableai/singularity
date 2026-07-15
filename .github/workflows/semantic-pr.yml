@@ -1,0 +1,41 @@
+name: Semantic PR title
+
+# A squash merge takes the PR title as the commit subject, so the title is what lands
+# on main's history — lint it the same way commits are written.
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+# pull_request_target runs against the base repo with a token, so it must stay
+# read-only and must never check out the PR's code.
+permissions:
+  pull-requests: read
+
+jobs:
+  lint:
+    name: Check title
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            feat
+            fix
+            refactor
+            perf
+            chore
+            docs
+            test
+            ci
+            build
+            style
+            revert
+          requireScope: false
+          # Lowercase subject, matching the commit style: "fix: add x", not "fix: Add x".
+          subjectPattern: "^(?![A-Z]).+$"
+          subjectPatternError: |
+            The subject "{subject}" starts with an uppercase character.
+            Use lowercase, e.g. "feat: add foo" not "feat: Add foo".
