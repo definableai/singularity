@@ -1,0 +1,65 @@
+version: 2
+
+# Weekly grouped updates. Patch/minor land as one PR per ecosystem; majors open on
+# their own so a breaking bump is reviewed alone.
+#
+# Actions are pinned to full SHAs (supply-chain: a tag is movable, a SHA is not), which
+# is only safe if something keeps them current — that is this file's main job.
+#
+# `include: scope` appends the ecosystem scope, so `prefix` must be the bare type or you
+# get a doubled `chore(deps)(deps): bump x`.
+updates:
+  - package-ecosystem: uv
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    open-pull-requests-limit: 5
+    labels:
+      - dependencies
+      - python
+    commit-message:
+      prefix: chore
+      include: scope
+    groups:
+      python-deps:
+        update-types:
+          - patch
+          - minor
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - ci
+    commit-message:
+      prefix: chore(ci)
+    groups:
+      actions:
+        update-types:
+          - patch
+          - minor
+          - major
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: UTC
+    open-pull-requests-limit: 3
+    labels:
+      - dependencies
+      - docker
+    commit-message:
+      prefix: chore
+      include: scope
