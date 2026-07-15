@@ -4,15 +4,37 @@ on:
   push: {branches: [main]}
   pull_request:
 
-env:
-  ENVIRONMENT: dev
-  DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
-  REDIS_URL: redis://localhost:6379/0
+# Any permissions block resets unlisted scopes to none. Nothing here writes to the repo.
+permissions:
+  contents: read
+
+# Supersede a PR's in-flight run on a new push; never cancel or queue main — a unique
+# group per main run means there is nothing to collide with.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # Not a dependency of `test`: gating tests behind lint serialises a fast job in front of
+  # a slow one for no correctness gain. They race; both must pass.
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: ./.github/actions/setup-python-env
+      - name: ruff check
+        run: uv run ruff check src tests
+      - name: ruff format
+        run: uv run ruff format --check src tests
+
   test:
     runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: dev
+      DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
+      REDIS_URL: redis://localhost:6379/0
     services:
+      # Job runs on the runner host, so ports must be mapped and reached via localhost.
       postgres:
         image: pgvector/pgvector:pg17
         env: {POSTGRES_USER: singularity, POSTGRES_PASSWORD: singularity, POSTGRES_DB: singularity}
@@ -27,29 +49,42 @@ jobs:
           --health-cmd "redis-cli ping" --health-interval 2s
           --health-timeout 2s --health-retries 15
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --frozen
-      - name: lint
-        run: uv run ruff check src tests && uv run ruff format --check src tests
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: ./.github/actions/setup-python-env
+
+      # alembic owns `public`; the `singularity` schema is provisioned by the test
+      # session fixture (tests/conftest.py), matching ensure_schema() at app boot.
       - name: migration gate (single head + drift)
         run: |
           uv run alembic upgrade head
           uv run alembic check
+
       - name: tests
         run: uv run pytest -q
+
+      # Generated artefacts must match their source, or the contract has drifted.
       - name: contract gates
         run: |
           uv run sg config sync --check
           uv run sg api snapshot --check
-      - name: dependency audit
-        run: uv run --with pip-audit pip-audit --strict || true  # allowlist file arrives with first accepted risk
+
+  # Advisory: reports known CVEs without blocking the merge. Make this blocking once an
+  # allowlist exists for accepted risks.
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: ./.github/actions/setup-python-env
+      - name: pip-audit
+        continue-on-error: true
+        run: uv run --with pip-audit pip-audit --strict
 
   build:
     if: github.ref == 'refs/heads/main'
-    needs: test
+    needs: [lint, test]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t singularity:${{ github.sha }} .
-      # deploy contract: run `sg db migrate` + `sg script run --pending`, then roll pods
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: docker build
+        run: docker build -t singularity:${{ github.sha }} .
+      # Deploy contract: `sg db migrate && sg script run --pending`, then roll pods.
