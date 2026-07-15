@@ -6,8 +6,9 @@ deployments of the same code. Everything else is a named constant in source.
 
 import sys
 from enum import StrEnum
+from typing import Any
 
-from pydantic import Field, ValidationError, model_validator
+from pydantic import Field, ValidationError, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Constants (not settings — edit source to tune)
@@ -36,7 +37,7 @@ class Settings(BaseSettings):
     obs_transports: list[str] | None = Field(None, description="Obs transports (jsonl|stdout|null). Unset = derived: dev=jsonl, else stdout.")
     obs_redact_fields: list[str] = Field([], description="Extra field names to redact in obs events (extends built-ins).")
     obs_flush_timeout_s: int = Field(5, description="Bound on the final obs flush at shutdown (s).")
-    trace_mode: str | None = Field(None, description="dev | on_error | off. Unset = derived from ENVIRONMENT. dev mode only allowed when ENVIRONMENT=dev.")
+    trace_mode: str = Field("", description="dev | on_error | off. Unset = derived from ENVIRONMENT. dev mode only allowed when ENVIRONMENT=dev.")
     trace_slow_ms: int = Field(1000, description="on_error mode also emits journeys slower than this (ms).")
     trace_sample_rate: float = Field(0.1, description="on_error mode: fraction of requests captured at T2.")
     trace_code_roots: list[str] = Field(
@@ -56,6 +57,13 @@ class Settings(BaseSettings):
     dataviews_db_url: str = Field("", description="Read-only role URL for Observatory data views (sg db grant-readonly). Empty = data views disabled.")
     dashboard_users_sql: str = Field("", description="SELECT returning id, email, name, created_at for Observatory's Users view. Empty = principals from records.")
 
+    @field_validator("obs_transports", mode="before")
+    @classmethod
+    def _blank_is_unset(cls, v: Any) -> Any:
+        # `.env.template` ships `OBS_TRANSPORTS=` (blank means "derive it"). Blank must
+        # not reach the list parser as "" — copying the template verbatim has to boot.
+        return None if v == "" else v
+
     @model_validator(mode="after")
     def _dev_affordances(self) -> "Settings":
         if self.auth_dev_principal and not self.is_dev:
@@ -66,7 +74,7 @@ class Settings(BaseSettings):
     def _derive_obs(self) -> "Settings":
         if self.obs_transports is None:
             self.obs_transports = ["jsonl"] if self.is_dev else ["stdout"]
-        if self.trace_mode is None:
+        if not self.trace_mode:  # unset or blank (`TRACE_MODE=` in .env) → derive
             self.trace_mode = "dev" if self.is_dev else "on_error"
         elif self.trace_mode == "dev" and not self.is_dev:
             # Dev affordances require environment == dev exactly (01).
