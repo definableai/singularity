@@ -1,13 +1,66 @@
 """`sg` — the one CLI (07). Lives in src/cli/; src/scripts/ holds only BaseScript files."""
 
 import asyncio
+import os
 import sys
+import traceback
 from pathlib import Path
 
 import click
 import orjson
 
 ROOT = Path(__file__).resolve().parents[2]
+
+TRACE_TAIL_FRAMES = 5  # inline: how many innermost frames to show before `-v`
+
+
+def _short(path: str) -> str:
+    """Repo-relative for our code, site-packages-relative for deps — kill the noise."""
+    if str(ROOT) in path:
+        return os.path.relpath(path, ROOT)
+    if "/site-packages/" in path:
+        return path.split("/site-packages/", 1)[1]
+    return path
+
+
+def _chain_frames(exc: BaseException) -> list[traceback.FrameSummary]:
+    """Flatten the whole cause/context chain, oldest-first (print order), so the tail
+    lands on the frames that actually failed — not just the wrapper that re-raised."""
+    chain: list[BaseException] = []
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        chain.append(cur)
+        if cur.__cause__ is not None:
+            cur = cur.__cause__
+        elif not cur.__suppress_context__:
+            cur = cur.__context__
+        else:
+            break
+    frames: list[traceback.FrameSummary] = []
+    for e in reversed(chain):  # oldest cause → final exception
+        frames.extend(traceback.extract_tb(e.__traceback__))
+    return frames
+
+
+def _compact_trace(exc: BaseException) -> str:
+    """Inline tail: `… N hidden` + innermost frames + the exception — dimmed."""
+    frames = _chain_frames(exc)
+    hidden = len(frames) - TRACE_TAIL_FRAMES
+    lines = []
+    if hidden > 0:
+        lines.append(f"… {hidden} frames hidden — sg doctor -v")
+    for f in frames[-TRACE_TAIL_FRAMES:]:
+        lines.append(f"{_short(f.filename)}:{f.lineno} in {f.name}")
+    msg = str(exc)
+    lines.append(f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__)
+    return click.style("\n".join("    " + line for line in lines), fg="bright_black")
+
+
+def _full_trace(exc: BaseException) -> str:
+    """Plain full traceback (chain included) for the pager."""
+    return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)).rstrip()
 
 
 def _settings():
@@ -51,15 +104,23 @@ def cli():
 # ---------------- doctor ----------------
 
 @cli.command()
-def doctor():
+@click.option("-v", "--verbose", is_flag=True, help="full tracebacks, paged (less) on a TTY")
+def doctor(verbose: bool):
     """Why won't it boot? Every check prints pass/fail + the fix."""
     ok = True
+    failures: list[tuple[str, BaseException]] = []  # (name, exc) for -v paging
 
-    def check(name: str, passed: bool, fix: str = ""):
+    def check(name: str, passed: bool, fix: str = "", exc: BaseException | None = None):
         nonlocal ok
         ok &= passed
         mark = click.style("✓", fg="green") if passed else click.style("✗", fg="red")
-        click.echo(f" {mark} {name}" + ("" if passed else f"\n    fix: {fix}"))
+        line = f" {mark} {name}"
+        if not passed:
+            line += f"\n    fix: {fix}"
+            if exc is not None:
+                line += "\n" + _compact_trace(exc)
+                failures.append((name, exc))
+        click.echo(line)
 
     v = sys.version_info
     check(f"python {v.major}.{v.minor}", v >= (3, 12), "install Python >= 3.12 (sys.monitoring)")
@@ -78,12 +139,12 @@ def doctor():
 
         results = {}
         if not s.database_url:
-            return {"db": (False, "set DATABASE_URL in .env")}
+            return {"db": (False, "set DATABASE_URL in .env", None)}
         try:
             async with asyncio.timeout(3):
                 async with get_engine().connect() as conn:
                     await conn.execute(text("SELECT 1"))
-            results["db"] = (True, "")
+            results["db"] = (True, "", None)
             async with get_engine().connect() as conn:
                 rows = (
                     await conn.execute(
@@ -93,13 +154,13 @@ def doctor():
                         )
                     )
                 ).scalar()
-            results["store partition (today)"] = (bool(rows), "boot the app once or run obs.maintain_store")
+            results["store partition (today)"] = (bool(rows), "boot the app once or run obs.maintain_store", None)
         except Exception as e:
-            results["db"] = (False, f"start postgres (docker compose up -d) — {type(e).__name__}")
+            results["db"] = (False, f"start postgres (docker compose up -d) — {type(e).__name__}", e)
         return results
 
-    for name, (passed, fix) in _run(db_checks()).items():
-        check(name, passed, fix)
+    for name, (passed, fix, exc) in _run(db_checks()).items():
+        check(name, passed, fix, exc)
 
     async def redis_check():
         try:
@@ -108,11 +169,12 @@ def doctor():
             redis_mod._client = None  # loop-bound; fresh client for this loop
             async with asyncio.timeout(2):
                 await redis_mod.get_redis().ping()
-            return True
-        except Exception:
-            return False
+            return True, None
+        except Exception as e:
+            return False, e
 
-    check("redis", asyncio.run(redis_check()), "start redis (docker compose up -d)")
+    r_ok, r_exc = asyncio.run(redis_check())
+    check("redis", r_ok, "start redis (docker compose up -d)", r_exc)
 
     if s.database_url:
         try:
@@ -123,7 +185,7 @@ def doctor():
             heads = script.get_heads()
             check(f"alembic single head ({len(heads)})", len(heads) <= 1, "merge heads: alembic merge heads")
         except Exception as e:
-            check("alembic", False, f"{e}")
+            check("alembic", False, f"{e}", e)
 
         async def scripts_check():
             from src.core.schema import ensure_schema
@@ -140,10 +202,19 @@ def doctor():
             for name in pend:
                 click.echo(f"    pending: {name}")
         except Exception as e:
-            check("scripts", False, str(e))
+            check("scripts", False, str(e), e)
 
     if not s.is_dev and not s.dashboard_token:
         check("dashboard token", False, "set DASHBOARD_TOKEN to enable /__obs outside dev")
+
+    if verbose and failures:
+        report = "\n\n".join(f"===== {name} =====\n{_full_trace(exc)}" for name, exc in failures)
+        if sys.stdout.isatty():
+            click.echo_via_pager(report)  # scroll (↑/↓), search (/), quit (q)
+        else:
+            click.echo(report)  # CI / pipes stay plain
+    elif failures:
+        click.echo(click.style("    (sg doctor -v for full tracebacks)", fg="bright_black"))
 
     raise SystemExit(0 if ok else 1)
 
