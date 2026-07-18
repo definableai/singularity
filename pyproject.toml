@@ -5,7 +5,7 @@ description = "FastAPI boilerplate: fastest path from git clone to a production-
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.139.2",
-    "uvicorn[standard]>=0.34",
+    "uvicorn[standard]>=0.51.0",
     "orjson>=3.10",
     "pydantic-settings>=2.7",
     "loguru>=0.7",
