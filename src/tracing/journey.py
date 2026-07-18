@@ -47,7 +47,11 @@ class Journey:
         if len(self.steps) >= MAX_STEPS:
             self.degraded = True
             return
-        step: dict[str, Any] = {"kind": kind, "name": name, "t": round((time.perf_counter() - self.started) * 1000, 3)}
+        step: dict[str, Any] = {
+            "kind": kind,
+            "name": name,
+            "t": round((time.perf_counter() - self.started) * 1000, 3),
+        }
         if duration_ms is not None:
             step["duration_ms"] = round(duration_ms, 3)
         if data:
@@ -60,7 +64,9 @@ def current() -> Journey | None:
 
 
 def start(method: str, path: str, request_id: str) -> Journey:
-    j = Journey(trace_id="trc_" + uuid.uuid4().hex[:20], request_id=request_id, method=method, path=path)
+    j = Journey(
+        trace_id="trc_" + uuid.uuid4().hex[:20], request_id=request_id, method=method, path=path
+    )
     trace_id_var.set(j.trace_id)
     _journey_var.set(j)
     return j
@@ -125,8 +131,5 @@ def should_emit(j: Journey, duration_ms: float, mode: str, slow_ms: int) -> bool
     if mode == "off":
         return False
     return (
-        j.status >= 500
-        or j.error is not None
-        or duration_ms > slow_ms
-        or j.n_plus_one is not None
+        j.status >= 500 or j.error is not None or duration_ms > slow_ms or j.n_plus_one is not None
     )

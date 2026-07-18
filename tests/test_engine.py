@@ -25,6 +25,7 @@ def armed_engine(monkeypatch):
 
 # --- traced target functions (live under the test root) ---
 
+
 def _price(order: dict, factor: float) -> float:
     subtotal = order["amount"] * factor
     tax = subtotal * 0.2

@@ -1,0 +1,32 @@
+name: Cleanup PR caches
+
+# A merged or closed PR's uv cache is dead weight against the repo's 10 GB cache
+# budget, and GitHub evicts least-recently-used entries once it is hit — so stale PR
+# caches evict main's. Delete them when the PR closes.
+on:
+  pull_request:
+    types: [closed]
+
+permissions:
+  contents: read
+
+jobs:
+  cleanup:
+    name: Delete PR caches
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write # deleting caches is a write to the Actions scope
+    steps:
+      # --all avoids `gh cache list`'s 30-entry cap. --succeed-on-no-caches exits 0
+      # when the PR left none, without masking real failures the way `|| true` would.
+      - name: Delete caches for the PR's merge ref
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: refs/pull/${{ github.event.pull_request.number }}/merge
+          REPO: ${{ github.repository }}
+        run: >-
+          gh cache delete --all
+          --ref "$BRANCH"
+          --repo "$REPO"
+          --succeed-on-no-caches

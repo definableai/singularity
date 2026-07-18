@@ -13,9 +13,11 @@ from pathlib import Path
 
 import orjson
 from fastapi import APIRouter, Depends, Request
-from fastapi.responses import HTMLResponse, ORJSONResponse, Response
+from fastapi.responses import HTMLResponse, Response
 from sqlalchemy import text
 from starlette.responses import StreamingResponse
+
+from src.core.responses import JSONResponse
 
 from src.config.settings import settings
 from src.core.errors import AppError
@@ -175,7 +177,9 @@ async def _stat_tiles() -> dict[str, str]:
         "0.42%": f"{(errs / total * 100):.2f}%" if total else "0.00%",
         "101 events · 3 unresolved": f"{issues[0]['events']} events · {issues[0]['open']} unresolved",
         "v0.9.2 · us-east": f"singularity · {settings.environment}",
-        "All systems nominal": "All systems nominal" if not issues[0]["open"] else f"{issues[0]['open']} open issues",
+        "All systems nominal": "All systems nominal"
+        if not issues[0]["open"]
+        else f"{issues[0]['open']} open issues",
     }
 
 
@@ -220,6 +224,7 @@ async def vendor(name: str) -> Response:
 
 # ---------- bootstrap: everything the list views need, proto-shaped ----------
 
+
 @router.get("/api/bootstrap", include_in_schema=False)
 async def bootstrap():
     trace_rows = await _rows(
@@ -235,15 +240,23 @@ async def bootstrap():
         from src.obs import dataviews as dv
 
         try:
-            uq = await dv.run_query(settings.dataviews_db_url, settings.dashboard_users_sql, limit=200)
+            uq = await dv.run_query(
+                settings.dataviews_db_url, settings.dashboard_users_sql, limit=200
+            )
             names = [c[0] for c in uq["cols"]]
 
             def col(row, key):
                 return str(row[names.index(key)]) if key in names else ""
 
             user_rows = [
-                {"principal_id": col(r, "id") or col(r, "email"), "reqs": 0, "last_seen": None,
-                 "_email": col(r, "email"), "_name": col(r, "name"), "_created": col(r, "created_at")}
+                {
+                    "principal_id": col(r, "id") or col(r, "email"),
+                    "reqs": 0,
+                    "last_seen": None,
+                    "_email": col(r, "email"),
+                    "_name": col(r, "name"),
+                    "_created": col(r, "created_at"),
+                }
                 for r in uq["rows"]
             ]
         except Exception:
@@ -279,7 +292,9 @@ async def bootstrap():
         "SELECT ts, kind, level, name, message, status, duration_ms FROM singularity.records "
         "WHERE kind IN ('journey','log') ORDER BY ts DESC LIMIT 12"
     )
-    view_rows = await _rows("SELECT id, name, spec FROM singularity.view ORDER BY created_at LIMIT 20")
+    view_rows = await _rows(
+        "SELECT id, name, spec FROM singularity.view ORDER BY created_at LIMIT 20"
+    )
     queries = {}
     for i, r in enumerate(view_rows):
         spec = r["spec"] if isinstance(r["spec"], dict) else orjson.loads(r["spec"])
@@ -291,7 +306,7 @@ async def bootstrap():
             "rows": spec.get("last_rows", []),
         }
     open_issues = [r for r in issue_rows if r["state"] in ("unresolved", "regressed")]
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "TRACES": pa.traces(trace_rows),
             "LOGS": pa.logs(log_rows),
@@ -313,16 +328,18 @@ async def proto_trace(trace_id: str):
         {"tid": trace_id},
     )
     if not rows:
-        return ORJSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     r = rows[0]
-    journey = r["attributes"] if isinstance(r["attributes"], dict) else orjson.loads(r["attributes"])
+    journey = (
+        r["attributes"] if isinstance(r["attributes"], dict) else orjson.loads(r["attributes"])
+    )
     log_rows = await _rows(
         "SELECT ts, level, name, message FROM singularity.records "
         "WHERE kind='log' AND trace_id=:tid ORDER BY ts LIMIT 100",
         {"tid": trace_id},
     )
     exec_map, tree = pa.exec_tree(journey)
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "SPANS": pa.spans(journey, r["name"], r["status"], r["duration_ms"]),
             "EXEC": exec_map,
@@ -340,7 +357,7 @@ async def proto_issue(fingerprint: str):
         {"f": fingerprint},
     )
     if not rows:
-        return ORJSONResponse({"error": "not found"}, status_code=404)
+        return JSONResponse({"error": "not found"}, status_code=404)
     issue = rows[0]
     events = await _rows(
         "SELECT ts, trace_id, principal_id, duration_ms FROM singularity.records "
@@ -360,7 +377,7 @@ async def proto_issue(fingerprint: str):
                 if step.get("kind") == "exception":
                     trace_text = step.get("data", {}).get("trace", "")
                     break
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "STACK": pa.stack(trace_text, settings.trace_code_roots),
             "TAGGROUPS": [],  # release/region tags arrive when the app declares them
@@ -375,27 +392,29 @@ async def proto_query(body: dict):
     from src.obs import dataviews as dv
 
     if not settings.dataviews_db_url:
-        return ORJSONResponse(
+        return JSONResponse(
             {"error": "data views disabled — run `sg db grant-readonly`, set DATAVIEWS_DB_URL"},
             status_code=409,
         )
     sql = (body.get("sql") or "").strip().rstrip(";")
     if not sql:
-        return ORJSONResponse({"error": "empty sql"}, status_code=422)
+        return JSONResponse({"error": "empty sql"}, status_code=422)
     try:
         result = await dv.run_query(settings.dataviews_db_url, sql, limit=1000)
     except dv.DataViewsError as e:
-        return ORJSONResponse({"error": str(e)}, status_code=400)
+        return JSONResponse({"error": str(e)}, status_code=400)
     inferred = dv.infer(result["cols"], result["rows"])
     suggestion = dv.suggest(inferred, len(result["rows"]))
 
     # proto shapes: inferRows table + 4-tuple bar rows [label, sub, value, w*0.38]
     infer_rows = [
         {
-            "col": c["col"], "pg": c["pg"],
+            "col": c["col"],
+            "pg": c["pg"],
             "role": c["role"].upper() + (" · $" if c["format"] == "currency" else ""),
             "rc": "var(--tx)" if c["role"] == "measure" else "var(--tx2)",
-            "card": c["card"], "why": c["why"],
+            "card": c["card"],
+            "why": c["why"],
         }
         for c in inferred
     ]
@@ -408,17 +427,28 @@ async def proto_query(body: dict):
     numeric = [float(r[vi] or 0) for r in result["rows"][:12]] or [1]
     peak = max(numeric) or 1
     bar_rows = [
-        [str(r[li]), "", f"{r[vi]:,}" if isinstance(r[vi], (int, float)) else str(r[vi]),
-         round(float(r[vi] or 0) / peak * 38)]
+        [
+            str(r[li]),
+            "",
+            f"{r[vi]:,}" if isinstance(r[vi], (int, float)) else str(r[vi]),
+            round(float(r[vi] or 0) / peak * 38),
+        ]
         for r in result["rows"][:12]
     ]
     spec = {
         "query": {"sql": sql},
-        "columns": {c["col"]: {"type": c["pg"], "role": c["role"], **({"format": c["format"]} if c["format"] else {})} for c in inferred},
+        "columns": {
+            c["col"]: {
+                "type": c["pg"],
+                "role": c["role"],
+                **({"format": c["format"]} if c["format"] else {}),
+            }
+            for c in inferred
+        },
         "chart": {"kind": suggestion["kind"], "encoding": enc},
         "limits": {"rows": 1000},
     }
-    return ORJSONResponse(
+    return JSONResponse(
         {
             "rows": bar_rows,
             "inferRows": infer_rows,
@@ -439,7 +469,7 @@ async def save_view(body: dict):
     name = (body.get("name") or "Untitled view").strip()[:80]
     spec = body.get("spec")
     if not isinstance(spec, dict) or "query" not in spec:
-        return ORJSONResponse({"error": "spec with a query is required"}, status_code=422)
+        return JSONResponse({"error": "spec with a query is required"}, status_code=422)
     view_id = _re.sub(r"[^a-z0-9]+", "-", name.lower()).strip("-") or "view"
     spec["last_rows"] = body.get("rows", [])[:10]
     spec["meta"] = f"saved · {body.get('row_count', 0)} rows"
@@ -453,14 +483,14 @@ async def save_view(body: dict):
             ),
             {"i": view_id, "n": name, "s": orjson.dumps(spec).decode()},
         )
-    return ORJSONResponse({"ok": True, "id": view_id})
+    return JSONResponse({"ok": True, "id": view_id})
 
 
 @router.post("/api/issues/{fingerprint}/state", include_in_schema=False)
 async def set_issue_state(fingerprint: str, body: dict):
     new_state = body.get("state")
     if new_state not in ("resolved", "ignored", "unresolved"):
-        return ORJSONResponse({"error": "state must be resolved|ignored|unresolved"}, status_code=422)
+        return JSONResponse({"error": "state must be resolved|ignored|unresolved"}, status_code=422)
     from src.database.engine import get_engine
 
     async with get_engine().begin() as conn:
@@ -468,7 +498,7 @@ async def set_issue_state(fingerprint: str, body: dict):
             text("UPDATE singularity.issue SET state=:s WHERE fingerprint=:f"),
             {"s": new_state, "f": fingerprint},
         )
-    return ORJSONResponse({"ok": True})
+    return JSONResponse({"ok": True})
 
 
 @router.get("/api/tail", include_in_schema=False)
@@ -476,7 +506,7 @@ async def tail(request: Request, kinds: str = "log,journey"):
     """SSE live tail — polls the shared PG store (multi-worker safe by construction)."""
     global _tail_connections
     if _tail_connections >= TAIL_MAX_CONNECTIONS:
-        return ORJSONResponse({"error": "too many tail connections"}, status_code=429)
+        return JSONResponse({"error": "too many tail connections"}, status_code=429)
     kind_list = [k.strip() for k in kinds.split(",") if k.strip()]
 
     async def stream():

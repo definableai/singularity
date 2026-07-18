@@ -1,0 +1,30 @@
+name: CI Lint
+
+# Reusable workflow: ruff lint + format. Called by ci.yml.
+#
+# This job owns the uv cache. Parallel jobs share one cache key, so exactly one may
+# save it — the rest reserve the same key and log "Failed to save". Lint is the
+# cheapest job and always runs, so it writes and the others restore.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Set up Python + uv
+        uses: ./.github/actions/setup-python-env
+
+      - name: Lint with ruff
+        run: uv run ruff check src tests
+
+      - name: Check formatting with ruff
+        run: uv run ruff format --check src tests

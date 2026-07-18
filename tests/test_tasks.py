@@ -25,7 +25,10 @@ def test_task_defaults_and_beat_registration(digest_task):
     assert t.autoretry_for == (Exception,)
     assert t.ignore_result is True
     assert celery_app.conf.beat_schedule["test.digest"] == {"task": "test.digest", "schedule": 42}
-    assert celery_app.conf.broker_transport_options["visibility_timeout"] > celery_app.conf.task_time_limit
+    assert (
+        celery_app.conf.broker_transport_options["visibility_timeout"]
+        > celery_app.conf.task_time_limit
+    )
 
 
 def test_task_gets_ctx_and_runs_eager(digest_task):

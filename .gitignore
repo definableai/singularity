@@ -6,3 +6,7 @@ logs/
 .pytest_cache/
 .ruff_cache/
 dist/
+.mypy_cache/
+
+# Claude Code: skills/commands/agents/hooks/memory are shared; local perms are personal
+.claude/

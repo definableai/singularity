@@ -2,6 +2,7 @@
 
 import sys
 from contextlib import asynccontextmanager
+from typing import Any, cast
 
 from fastapi import FastAPI
 from starlette.middleware.cors import CORSMiddleware
@@ -76,7 +77,7 @@ def create_app() -> FastAPI:
         # timeout — must not hang in the pool-checkout queue (02).
         import asyncio
 
-        from fastapi.responses import ORJSONResponse
+        from src.core.responses import JSONResponse
 
         checks: dict[str, str] = {}
         if settings.database_url:
@@ -100,7 +101,7 @@ def create_app() -> FastAPI:
         except Exception as e:
             checks["redis"] = f"fail: {type(e).__name__}"
         ready = all(v == "ok" for v in checks.values())
-        return ORJSONResponse({"ready": ready, **checks}, status_code=200 if ready else 503)
+        return JSONResponse({"ready": ready, **checks}, status_code=200 if ready else 503)
 
     app.state.route_report = register_services(app, ctx)
     register_handlers(app, dev=settings.is_dev)
@@ -114,8 +115,10 @@ def create_app() -> FastAPI:
         log.warning("Observatory disabled: set DASHBOARD_TOKEN to enable /__obs")
 
     # add_middleware: last added = outermost. User escape-hatch runs inside CoreLayer.
+    # cast: the contract is structural (pure ASGI class, core/middleware.py), and
+    # Starlette's matching factory protocol is private — nothing public to declare.
     for mw in reversed(discover_middlewares()):
-        app.add_middleware(mw)
+        app.add_middleware(cast(Any, mw))
     app.add_middleware(
         CoreLayer,
         timeout_s=settings.request_timeout_s,
@@ -185,3 +188,7 @@ def main() -> None:
         forwarded_allow_ips=settings.forwarded_allow_ips,
         timeout_graceful_shutdown=settings.shutdown_grace_s,
     )
+
+
+if __name__ == "__main__":
+    main()

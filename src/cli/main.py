@@ -1,13 +1,66 @@
 """`sg` — the one CLI (07). Lives in src/cli/; src/scripts/ holds only BaseScript files."""
 
 import asyncio
+import os
 import sys
+import traceback
 from pathlib import Path
 
 import click
 import orjson
 
 ROOT = Path(__file__).resolve().parents[2]
+
+TRACE_TAIL_FRAMES = 5  # inline: how many innermost frames to show before `-v`
+
+
+def _short(path: str) -> str:
+    """Repo-relative for our code, site-packages-relative for deps — kill the noise."""
+    if str(ROOT) in path:
+        return os.path.relpath(path, ROOT)
+    if "/site-packages/" in path:
+        return path.split("/site-packages/", 1)[1]
+    return path
+
+
+def _chain_frames(exc: BaseException) -> list[traceback.FrameSummary]:
+    """Flatten the whole cause/context chain, oldest-first (print order), so the tail
+    lands on the frames that actually failed — not just the wrapper that re-raised."""
+    chain: list[BaseException] = []
+    cur: BaseException | None = exc
+    seen: set[int] = set()
+    while cur is not None and id(cur) not in seen:
+        seen.add(id(cur))
+        chain.append(cur)
+        if cur.__cause__ is not None:
+            cur = cur.__cause__
+        elif not cur.__suppress_context__:
+            cur = cur.__context__
+        else:
+            break
+    frames: list[traceback.FrameSummary] = []
+    for e in reversed(chain):  # oldest cause → final exception
+        frames.extend(traceback.extract_tb(e.__traceback__))
+    return frames
+
+
+def _compact_trace(exc: BaseException) -> str:
+    """Inline tail: `… N hidden` + innermost frames + the exception — dimmed."""
+    frames = _chain_frames(exc)
+    hidden = len(frames) - TRACE_TAIL_FRAMES
+    lines = []
+    if hidden > 0:
+        lines.append(f"… {hidden} frames hidden — sg doctor -v")
+    for f in frames[-TRACE_TAIL_FRAMES:]:
+        lines.append(f"{_short(f.filename)}:{f.lineno} in {f.name}")
+    msg = str(exc)
+    lines.append(f"{type(exc).__name__}: {msg}" if msg else type(exc).__name__)
+    return click.style("\n".join("    " + line for line in lines), fg="bright_black")
+
+
+def _full_trace(exc: BaseException) -> str:
+    """Plain full traceback (chain included) for the pager."""
+    return "".join(traceback.format_exception(type(exc), exc, exc.__traceback__)).rstrip()
 
 
 def _settings():
@@ -50,16 +103,25 @@ def cli():
 
 # ---------------- doctor ----------------
 
+
 @cli.command()
-def doctor():
+@click.option("-v", "--verbose", is_flag=True, help="full tracebacks, paged (less) on a TTY")
+def doctor(verbose: bool):
     """Why won't it boot? Every check prints pass/fail + the fix."""
     ok = True
+    failures: list[tuple[str, BaseException]] = []  # (name, exc) for -v paging
 
-    def check(name: str, passed: bool, fix: str = ""):
+    def check(name: str, passed: bool, fix: str = "", exc: BaseException | None = None):
         nonlocal ok
         ok &= passed
         mark = click.style("✓", fg="green") if passed else click.style("✗", fg="red")
-        click.echo(f" {mark} {name}" + ("" if passed else f"\n    fix: {fix}"))
+        line = f" {mark} {name}"
+        if not passed:
+            line += f"\n    fix: {fix}"
+            if exc is not None:
+                line += "\n" + _compact_trace(exc)
+                failures.append((name, exc))
+        click.echo(line)
 
     v = sys.version_info
     check(f"python {v.major}.{v.minor}", v >= (3, 12), "install Python >= 3.12 (sys.monitoring)")
@@ -78,12 +140,12 @@ def doctor():
 
         results = {}
         if not s.database_url:
-            return {"db": (False, "set DATABASE_URL in .env")}
+            return {"db": (False, "set DATABASE_URL in .env", None)}
         try:
             async with asyncio.timeout(3):
                 async with get_engine().connect() as conn:
                     await conn.execute(text("SELECT 1"))
-            results["db"] = (True, "")
+            results["db"] = (True, "", None)
             async with get_engine().connect() as conn:
                 rows = (
                     await conn.execute(
@@ -93,13 +155,21 @@ def doctor():
                         )
                     )
                 ).scalar()
-            results["store partition (today)"] = (bool(rows), "boot the app once or run obs.maintain_store")
+            results["store partition (today)"] = (
+                bool(rows),
+                "boot the app once or run obs.maintain_store",
+                None,
+            )
         except Exception as e:
-            results["db"] = (False, f"start postgres (docker compose up -d) — {type(e).__name__}")
+            results["db"] = (
+                False,
+                f"start postgres (docker compose up -d) — {type(e).__name__}",
+                e,
+            )
         return results
 
-    for name, (passed, fix) in _run(db_checks()).items():
-        check(name, passed, fix)
+    for name, (passed, fix, exc) in _run(db_checks()).items():
+        check(name, passed, fix, exc)
 
     async def redis_check():
         try:
@@ -108,11 +178,12 @@ def doctor():
             redis_mod._client = None  # loop-bound; fresh client for this loop
             async with asyncio.timeout(2):
                 await redis_mod.get_redis().ping()
-            return True
-        except Exception:
-            return False
+            return True, None
+        except Exception as e:
+            return False, e
 
-    check("redis", asyncio.run(redis_check()), "start redis (docker compose up -d)")
+    r_ok, r_exc = asyncio.run(redis_check())
+    check("redis", r_ok, "start redis (docker compose up -d)", r_exc)
 
     if s.database_url:
         try:
@@ -121,9 +192,13 @@ def doctor():
 
             script = ScriptDirectory.from_config(Config(str(ROOT / "alembic.ini")))
             heads = script.get_heads()
-            check(f"alembic single head ({len(heads)})", len(heads) <= 1, "merge heads: alembic merge heads")
+            check(
+                f"alembic single head ({len(heads)})",
+                len(heads) <= 1,
+                "merge heads: alembic merge heads",
+            )
         except Exception as e:
-            check("alembic", False, f"{e}")
+            check("alembic", False, f"{e}", e)
 
         async def scripts_check():
             from src.core.schema import ensure_schema
@@ -140,15 +215,25 @@ def doctor():
             for name in pend:
                 click.echo(f"    pending: {name}")
         except Exception as e:
-            check("scripts", False, str(e))
+            check("scripts", False, str(e), e)
 
     if not s.is_dev and not s.dashboard_token:
         check("dashboard token", False, "set DASHBOARD_TOKEN to enable /__obs outside dev")
+
+    if verbose and failures:
+        report = "\n\n".join(f"===== {name} =====\n{_full_trace(exc)}" for name, exc in failures)
+        if sys.stdout.isatty():
+            click.echo_via_pager(report)  # scroll (↑/↓), search (/), quit (q)
+        else:
+            click.echo(report)  # CI / pipes stay plain
+    elif failures:
+        click.echo(click.style("    (sg doctor -v for full tracebacks)", fg="bright_black"))
 
     raise SystemExit(0 if ok else 1)
 
 
 # ---------------- generators ----------------
+
 
 @cli.group()
 def g():
@@ -185,7 +270,9 @@ class {name.capitalize()}Service:
         return {{"items": [], "total": 0}}
 ''',
     )
-    click.echo(f"→ GET /api/v1/{name}/list (restart the server; strict registrar validates at boot)")
+    click.echo(
+        f"→ GET /api/v1/{name}/list (restart the server; strict registrar validates at boot)"
+    )
 
 
 @g.command("model")
@@ -255,6 +342,7 @@ class Script(BaseScript):
 
 # ---------------- db ----------------
 
+
 @cli.group()
 def db():
     """Migrations and database helpers."""
@@ -299,6 +387,7 @@ ALTER ROLE singularity_ro SET statement_timeout = '10s';
 
 # ---------------- scripts ----------------
 
+
 @cli.group()
 def script():
     """Tracked operational scripts (08)."""
@@ -306,7 +395,9 @@ def script():
 
 @script.command("run")
 @click.argument("name", required=False)
-@click.option("--pending", "run_all", is_flag=True, help="deploy step: ordered once + changed repeatables")
+@click.option(
+    "--pending", "run_all", is_flag=True, help="deploy step: ordered once + changed repeatables"
+)
 @click.option("--force", is_flag=True)
 def script_run(name, run_all, force):
     from src.core.schema import ensure_schema
@@ -373,12 +464,15 @@ def script_history(name):
                 {"n": name},
             )
             for r in rows:
-                click.echo(f" {str(r.started_at)[:19]} {r.status:<8} {r.duration_ms or 0}ms {r.error or ''} {r.trace_id or ''}")
+                click.echo(
+                    f" {str(r.started_at)[:19]} {r.status:<8} {r.duration_ms or 0}ms {r.error or ''} {r.trace_id or ''}"
+                )
 
     _run(go())
 
 
 # ---------------- config sync ----------------
+
 
 @cli.command("config")
 @click.argument("action", type=click.Choice(["sync"]))
@@ -411,6 +505,7 @@ def config_cmd(action, check):
 
 # ---------------- api snapshot ----------------
 
+
 @cli.command("api")
 @click.argument("action", type=click.Choice(["snapshot"]))
 @click.option("--check", is_flag=True, help="fail if the schema changed without a snapshot update")
@@ -422,7 +517,9 @@ def api_cmd(action, check):
     snap = ROOT / "openapi.json"
     if check:
         if not snap.exists() or snap.read_bytes() != schema:
-            click.echo("✗ openapi.json drifted — run: sg api snapshot (and review the diff)", err=True)
+            click.echo(
+                "✗ openapi.json drifted — run: sg api snapshot (and review the diff)", err=True
+            )
             raise SystemExit(1)
         click.echo("✓ openapi.json matches the running schema")
     else:
@@ -431,6 +528,7 @@ def api_cmd(action, check):
 
 
 # ---------------- errors export ----------------
+
 
 @cli.command("errors")
 @click.argument("action", type=click.Choice(["export"]))
@@ -450,6 +548,7 @@ def errors_cmd(action):
 
 
 # ---------------- tasks dead-letter ----------------
+
 
 @cli.group()
 def tasks():
@@ -478,6 +577,7 @@ def tasks_dead(action):
 
 # ---------------- trace viewer ----------------
 
+
 @cli.command()
 @click.argument("trace_id")
 @click.option("--lines", is_flag=True, help="show per-line variable state")
@@ -501,19 +601,35 @@ def trace(trace_id, lines):
         if row is None:
             raise click.ClickException("trace not found (rotated out?)")
         j = row.attributes if isinstance(row.attributes, dict) else orjson.loads(row.attributes)
-        click.echo(click.style(f"{j.get('method')} {row.name} → {row.status} ({row.duration_ms}ms)", bold=True))
+        click.echo(
+            click.style(
+                f"{j.get('method')} {row.name} → {row.status} ({row.duration_ms}ms)", bold=True
+            )
+        )
         if j.get("error"):
             click.echo(click.style(f"  error: {j['error']}", fg="red"))
         for s in j.get("steps", []):
-            click.echo(f"  +{s['t']:<9} {s['kind']:<11} {s['name']}" + (f" ({s['duration_ms']}ms)" if s.get("duration_ms") is not None else ""))
+            click.echo(
+                f"  +{s['t']:<9} {s['kind']:<11} {s['name']}"
+                + (f" ({s['duration_ms']}ms)" if s.get("duration_ms") is not None else "")
+            )
 
         def walk(nodes, depth):
             for n in nodes:
-                click.echo("  " + "  " * depth + f"ƒ {n['name']} ({n.get('duration_ms', '?')}ms) → {str(n.get('exc') or n.get('ret'))[:60]}")
+                click.echo(
+                    "  "
+                    + "  " * depth
+                    + f"ƒ {n['name']} ({n.get('duration_ms', '?')}ms) → {str(n.get('exc') or n.get('ret'))[:60]}"
+                )
                 if lines:
                     for ln in n.get("lines", []):
                         if ln.get("vars"):
-                            click.echo("  " + "  " * (depth + 1) + f"L{ln['n']}: " + ", ".join(f"{k}={str(v)[:30]}" for k, v in ln["vars"].items()))
+                            click.echo(
+                                "  "
+                                + "  " * (depth + 1)
+                                + f"L{ln['n']}: "
+                                + ", ".join(f"{k}={str(v)[:30]}" for k, v in ln["vars"].items())
+                            )
                 walk(n.get("children", []), depth + 1)
 
         walk(j.get("calls", []), 0)
@@ -522,6 +638,7 @@ def trace(trace_id, lines):
 
 
 # ---------------- replay ----------------
+
 
 @cli.command()
 @click.argument("trace_id")
@@ -550,7 +667,12 @@ def replay(trace_id, base, auth_token, yes):
             raise click.ClickException("trace not found (rotated out?)")
         j = row.attributes if isinstance(row.attributes, dict) else orjson.loads(row.attributes)
         method = j.get("method", "GET")
-        if method not in ("GET", "HEAD") and "localhost" not in base and "127.0.0.1" not in base and not yes:
+        if (
+            method not in ("GET", "HEAD")
+            and "localhost" not in base
+            and "127.0.0.1" not in base
+            and not yes
+        ):
             raise click.ClickException("non-GET replay against a non-local target needs --yes")
 
         import httpx
@@ -570,14 +692,18 @@ def replay(trace_id, base, auth_token, yes):
         click.echo(f"original: {j.get('status')} ({j.get('duration_ms')}ms)")
         click.echo(r.text[:500])
         if not body and method not in ("GET", "HEAD"):
-            click.echo(click.style(
-                "note: no body was recorded for this journey (unarmed at capture time)", fg="yellow"
-            ))
+            click.echo(
+                click.style(
+                    "note: no body was recorded for this journey (unarmed at capture time)",
+                    fg="yellow",
+                )
+            )
 
     _run(go())
 
 
 # ---------------- views export/import ----------------
+
 
 @cli.command("views")
 @click.argument("action", type=click.Choice(["export", "import"]))
@@ -597,7 +723,9 @@ def views_cmd(action):
                 for r in rows:
                     spec = r.spec if isinstance(r.spec, dict) else orjson.loads(r.spec)
                     (vdir / f"{r.id}.json").write_bytes(
-                        orjson.dumps({"id": r.id, "name": r.name, "spec": spec}, option=orjson.OPT_INDENT_2)
+                        orjson.dumps(
+                            {"id": r.id, "name": r.name, "spec": spec}, option=orjson.OPT_INDENT_2
+                        )
                     )
                     click.echo(f"exported views/{r.id}.json")
         else:

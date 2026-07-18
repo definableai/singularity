@@ -12,7 +12,12 @@ from collections.abc import AsyncIterator
 
 from fastapi import Request
 from sqlalchemy import event
-from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 
 from src.config.settings import STATEMENT_TIMEOUT_S, settings
 
@@ -88,9 +93,9 @@ _sync_engine = None
 def get_sync_session():
     """DB access for Celery tasks (threads pool → sync engine, psycopg v3):
 
-        with get_sync_session() as session:
-            session.execute(...)
-            session.commit()
+    with get_sync_session() as session:
+        session.execute(...)
+        session.commit()
     """
     global _sync_engine
     if _sync_engine is None:
@@ -123,7 +128,10 @@ def _install_sql_steps_sync(engine) -> None:
             j.add_step(
                 "sql",
                 statement[:SQL_STEP_STATEMENT_CHARS],
-                duration_ms=(time.perf_counter() - getattr(context, "_journey_t0", time.perf_counter())) * 1000,
+                duration_ms=(
+                    time.perf_counter() - getattr(context, "_journey_t0", time.perf_counter())
+                )
+                * 1000,
                 rows=cursor.rowcount,
             )
 
@@ -142,6 +150,9 @@ def _install_sql_steps(engine: AsyncEngine) -> None:
             j.add_step(
                 "sql",
                 statement[:SQL_STEP_STATEMENT_CHARS],
-                duration_ms=(time.perf_counter() - getattr(context, "_journey_t0", time.perf_counter())) * 1000,
+                duration_ms=(
+                    time.perf_counter() - getattr(context, "_journey_t0", time.perf_counter())
+                )
+                * 1000,
                 rows=cursor.rowcount,
             )

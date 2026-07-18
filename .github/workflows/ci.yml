@@ -1,55 +1,69 @@
-name: ci
+name: CI
+
+# Orchestrator. Each suite is a reusable workflow in .github/workflows/ci-*.yml;
+# shared setup is the composite action in .github/actions/setup-python-env.
 
 on:
-  push: {branches: [main]}
+  push:
+    branches: [main]
   pull_request:
+    branches: [main]
+  # Manual re-trigger from the UI or `gh workflow run`, for when a run is lost to a
+  # cancellation or an infra blip and main's HEAD is left without one.
+  workflow_dispatch:
 
-env:
-  ENVIRONMENT: dev
-  DATABASE_URL: postgresql+asyncpg://singularity:singularity@localhost:5432/singularity
-  REDIS_URL: redis://localhost:6379/0
+# Any permissions block resets unlisted scopes to none. CI only reads the repo.
+permissions:
+  contents: read
+
+# Supersede a PR's in-flight run on a new push; never cancel or queue main — a unique
+# group per main run means there is nothing to collide with.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_id || github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  # lint deliberately does not gate test: that serialises a fast job in front of a slow
+  # one for no correctness gain. They race; both must pass.
+  lint:
+    name: Lint
+    uses: ./.github/workflows/ci-lint.yml
+
   test:
-    runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: pgvector/pgvector:pg17
-        env: {POSTGRES_USER: singularity, POSTGRES_PASSWORD: singularity, POSTGRES_DB: singularity}
-        ports: ["5432:5432"]
-        options: >-
-          --health-cmd "pg_isready -U singularity" --health-interval 2s
-          --health-timeout 2s --health-retries 15
-      redis:
-        image: redis:7-alpine
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping" --health-interval 2s
-          --health-timeout 2s --health-retries 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-      - run: uv sync --frozen
-      - name: lint
-        run: uv run ruff check src tests && uv run ruff format --check src tests
-      - name: migration gate (single head + drift)
-        run: |
-          uv run alembic upgrade head
-          uv run alembic check
-      - name: tests
-        run: uv run pytest -q
-      - name: contract gates
-        run: |
-          uv run sg config sync --check
-          uv run sg api snapshot --check
-      - name: dependency audit
-        run: uv run --with pip-audit pip-audit --strict || true  # allowlist file arrives with first accepted risk
+    name: Test
+    uses: ./.github/workflows/ci-test.yml
+
+  audit:
+    name: Audit
+    uses: ./.github/workflows/ci-audit.yml
 
   build:
+    name: Build
     if: github.ref == 'refs/heads/main'
-    needs: test
+    needs: [lint, test]
+    uses: ./.github/workflows/ci-build.yml
+
+  # The one required status check — point branch protection at this, not the suites.
+  # A skipped job (build on a PR) must not fail it; a failed or cancelled one must.
+  # `audit` is advisory and swallows its own failure, so it can only report success.
+  ci-status:
+    name: CI status
+    if: always()
+    needs: [lint, test, audit, build]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - uses: actions/checkout@v4
-      - run: docker build -t singularity:${{ github.sha }} .
-      # deploy contract: run `sg db migrate` + `sg script run --pending`, then roll pods
+      - name: Check that no required job failed
+        env:
+          RESULTS: ${{ toJson(needs) }}
+        run: |
+          echo "$RESULTS"
+          bad=$(echo "$RESULTS" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          print(','.join(k for k, v in data.items() if v['result'] not in ('success', 'skipped')))
+          ")
+          if [ -n "$bad" ]; then
+            echo "::error::Failing or cancelled jobs: $bad"
+            exit 1
+          fi

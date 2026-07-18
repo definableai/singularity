@@ -3,9 +3,9 @@
 import traceback
 
 from fastapi import FastAPI, Request
-from fastapi.responses import ORJSONResponse
 
 from src.core.asgi import request_id_var
+from src.core.responses import JSONResponse
 
 _codes: dict[str, type] = {}
 
@@ -23,7 +23,9 @@ class AppError(Exception):
         if "code" not in cls.__dict__:
             raise TypeError(f"{cls.__name__} must declare a 'code'")
         if cls.code in _codes:
-            raise TypeError(f"duplicate error code {cls.code!r}: {cls.__name__} vs {_codes[cls.code].__name__}")
+            raise TypeError(
+                f"duplicate error code {cls.code!r}: {cls.__name__} vs {_codes[cls.code].__name__}"
+            )
         _codes[cls.code] = cls
 
 
@@ -34,8 +36,8 @@ class NotFoundError(AppError):
     status = 404
 
 
-def envelope(code: str, message: str, status: int) -> ORJSONResponse:
-    return ORJSONResponse(
+def envelope(code: str, message: str, status: int) -> JSONResponse:
+    return JSONResponse(
         {"error": {"code": code, "message": message, "request_id": request_id_var.get("")}},
         status_code=status,
     )

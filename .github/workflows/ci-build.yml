@@ -1,0 +1,24 @@
+name: CI Build
+
+# Reusable workflow: build the container image. Called by ci.yml on main only.
+#
+# The image is built to prove the Dockerfile still works; it is not pushed. Deploy
+# contract: `sg db migrate && sg script run --pending`, then roll pods — migrations
+# and scripts never run from the container entrypoint.
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build image
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Build docker image
+        run: docker build -t singularity:${{ github.sha }} .

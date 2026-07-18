@@ -76,12 +76,17 @@ def test_inference_roles():
     ],
 )
 def test_suggestion_decision_table(cols, rows, expect):
-    inferred = dv.infer(cols, [[("x" + str(i)) if t == "text" else i for _, t in cols] for i in range(min(rows, 50))])
+    inferred = dv.infer(
+        cols,
+        [[("x" + str(i)) if t == "text" else i for _, t in cols] for i in range(min(rows, 50))],
+    )
     assert dv.suggest(inferred, rows)["kind"] == expect
 
 
 def test_query_endpoint_shapes(client):
-    r = client.post("/__obs/api/proto/query", json={"sql": "SELECT 'us' AS region, 42::int8 AS orders"})
+    r = client.post(
+        "/__obs/api/proto/query", json={"sql": "SELECT 'us' AS region, 42::int8 AS orders"}
+    )
     d = r.json()
     assert r.status_code == 200, d
     assert d["inferRows"][0]["col"] == "region"
@@ -99,7 +104,12 @@ def test_save_view_appears_in_bootstrap(client):
     d = r.json()
     save = client.post(
         "/__obs/api/views",
-        json={"name": "Test View", "spec": d["spec"], "rows": d["rows"], "row_count": d["row_count"]},
+        json={
+            "name": "Test View",
+            "spec": d["spec"],
+            "rows": d["rows"],
+            "row_count": d["row_count"],
+        },
     )
     assert save.json()["ok"] is True
     boot = client.get("/__obs/api/bootstrap").json()

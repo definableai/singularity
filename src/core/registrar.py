@@ -112,7 +112,9 @@ def register_services(app: FastAPI, ctx: Context, package: str = "src.services")
             (
                 obj
                 for name, obj in vars(module).items()
-                if inspect.isclass(obj) and name.endswith("Service") and obj.__module__ == module.__name__
+                if inspect.isclass(obj)
+                and name.endswith("Service")
+                and obj.__module__ == module.__name__
             ),
             None,
         )

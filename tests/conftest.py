@@ -39,6 +39,39 @@ def _install_auth_helpers(client: TestClient) -> TestClient:
     return client
 
 
+@pytest.fixture(scope="session", autouse=True)
+def _framework_schema():
+    """Create the `singularity` schema once, before any test runs.
+
+    Alembic owns `public` only; the framework schema comes from ensure_schema() (08).
+    Without this, tests pass only when one that boots the app happens to sort first.
+    """
+    import asyncio
+
+    from src.config.settings import settings
+
+    if not settings.database_url:
+        return
+
+    async def provision():
+        from src.core.schema import ensure_schema
+        from src.database.engine import get_engine
+
+        try:
+            await ensure_schema()
+        finally:
+            # asyncpg pools are loop-bound; this loop dies with asyncio.run below.
+            await get_engine().dispose()
+
+    try:
+        asyncio.run(provision())
+    except Exception as e:
+        # PG unreachable — the suites that need it skip on their own reachability guards.
+        print(
+            f"conftest: framework schema not provisioned ({type(e).__name__}) — PG tests will skip"
+        )
+
+
 @pytest.fixture()
 def client():
     from src.auth import deps

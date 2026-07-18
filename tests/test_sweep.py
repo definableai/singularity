@@ -106,9 +106,13 @@ def test_backpressure_sheds_tiers(monkeypatch):
         from src.config.settings import settings
 
         p = obs.init(settings)
-    monkeypatch.setattr(p, "queue", type(p.queue)([("x",)] * int(QUEUE_SIZE * 0.9), maxlen=QUEUE_SIZE))
+    monkeypatch.setattr(
+        p, "queue", type(p.queue)([("x",)] * int(QUEUE_SIZE * 0.9), maxlen=QUEUE_SIZE)
+    )
     assert engine._backpressure_tier(2) == 0  # over high watermark → T0 only
-    monkeypatch.setattr(p, "queue", type(p.queue)([("x",)] * int(QUEUE_SIZE * 0.5), maxlen=QUEUE_SIZE))
+    monkeypatch.setattr(
+        p, "queue", type(p.queue)([("x",)] * int(QUEUE_SIZE * 0.5), maxlen=QUEUE_SIZE)
+    )
     assert engine._backpressure_tier(2) == 1  # half full → shed lines, keep calls
     monkeypatch.setattr(p, "queue", type(p.queue)([], maxlen=QUEUE_SIZE))
     assert engine._backpressure_tier(2) == 2  # healthy → untouched

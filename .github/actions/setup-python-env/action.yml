@@ -1,0 +1,50 @@
+name: "Setup Python environment"
+description: "Install uv, restore its cache, and sync locked dependencies."
+
+# Checkout is NOT here: a local action is resolved from the checked-out workspace, so it
+# cannot check the repo out itself. Callers run actions/checkout first.
+
+inputs:
+  python-version:
+    description: "Python version. Empty = resolve from pyproject requires-python."
+    required: false
+    default: ""
+  sync-args:
+    description: "Extra arguments for `uv sync`."
+    required: false
+    default: ""
+  save-cache:
+    description: >-
+      Whether this job writes the uv cache. Parallel jobs share one cache key, so
+      exactly one should save; the rest restore only.
+    required: false
+    default: "true"
+
+outputs:
+  uv-version:
+    description: "The uv version that was installed."
+    value: ${{ steps.uv.outputs.uv-version }}
+  cache-hit:
+    description: "Whether uv's cache was restored."
+    value: ${{ steps.uv.outputs.cache-hit }}
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install uv
+      id: uv
+      uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+      with:
+        python-version: ${{ inputs.python-version }}
+        save-cache: ${{ inputs.save-cache }}
+        # uv.lock alone determines the dependency set; keying on pyproject.toml too
+        # would miss the cache on unrelated edits (version bumps, tool config).
+        cache-dependency-glob: "uv.lock"
+
+    - name: Sync dependencies
+      shell: bash
+      # --locked, not --frozen: --frozen accepts a stale lockfile silently, so CI would
+      # pass while pyproject.toml and uv.lock disagree. --locked asserts they match.
+      env:
+        SYNC_ARGS: ${{ inputs.sync-args }}
+      run: uv sync --locked $SYNC_ARGS

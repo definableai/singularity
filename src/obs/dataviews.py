@@ -86,12 +86,20 @@ def infer(cols: list[tuple[str, str]], rows: list[list]) -> list[dict]:
             role, why = "dimension", "low cardinality, non-numeric → group-by axis"
         else:
             role, why = "dimension", "non-numeric"
-        fmt = "currency" if any(k in name.lower() for k in ("revenue", "price", "amount", "total")) and role == "measure" else ""
-        out.append({"col": name, "pg": pg_type, "role": role, "format": fmt, "card": card, "why": why})
+        fmt = (
+            "currency"
+            if any(k in name.lower() for k in ("revenue", "price", "amount", "total"))
+            and role == "measure"
+            else ""
+        )
+        out.append(
+            {"col": name, "pg": pg_type, "role": role, "format": fmt, "card": card, "why": why}
+        )
     return out
 
 
 # ---------- chart suggestion: the deterministic decision table (no solver) ----------
+
 
 def suggest(inferred: list[dict], row_count: int) -> dict:
     times = [c for c in inferred if c["role"] == "time"]
@@ -102,18 +110,38 @@ def suggest(inferred: list[dict], row_count: int) -> dict:
         return {"x": x, "y": y, "series": series}
 
     if len(measures) == 1 and row_count == 1 and not times and not dims:
-        return {"kind": "big-number", "encoding": enc(y=measures[0]["col"]), "why": "1 measure, 1 row"}
+        return {
+            "kind": "big-number",
+            "encoding": enc(y=measures[0]["col"]),
+            "why": "1 measure, 1 row",
+        }
     if times and measures:
         series = dims[0]["col"] if dims else None
-        return {"kind": "line", "encoding": enc(times[0]["col"], measures[0]["col"], series),
-                "why": "time + measure → line" + (" per " + series if series else "")}
+        return {
+            "kind": "line",
+            "encoding": enc(times[0]["col"], measures[0]["col"], series),
+            "why": "time + measure → line" + (" per " + series if series else ""),
+        }
     if dims and measures:
         if len(dims) >= 2:
-            return {"kind": "bar", "encoding": enc(dims[0]["col"], measures[0]["col"], dims[1]["col"]),
-                    "why": "2 dimensions + measure → grouped bars"}
-        return {"kind": "bar", "encoding": enc(dims[0]["col"], measures[0]["col"]),
-                "why": "dimension + measure → bars, sorted desc"}
+            return {
+                "kind": "bar",
+                "encoding": enc(dims[0]["col"], measures[0]["col"], dims[1]["col"]),
+                "why": "2 dimensions + measure → grouped bars",
+            }
+        return {
+            "kind": "bar",
+            "encoding": enc(dims[0]["col"], measures[0]["col"]),
+            "why": "dimension + measure → bars, sorted desc",
+        }
     if len(measures) >= 2:
-        return {"kind": "scatter", "encoding": enc(measures[0]["col"], measures[1]["col"]),
-                "why": "2 measures → scatter"}
-    return {"kind": "table", "encoding": enc(), "why": "no chartable shape → table (the safe fallback)"}
+        return {
+            "kind": "scatter",
+            "encoding": enc(measures[0]["col"], measures[1]["col"]),
+            "why": "2 measures → scatter",
+        }
+    return {
+        "kind": "table",
+        "encoding": enc(),
+        "why": "no chartable shape → table (the safe fallback)",
+    }

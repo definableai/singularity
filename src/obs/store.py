@@ -78,7 +78,14 @@ class PGStore:
                 for title, fp, trace_id in issues:
                     cur.execute(
                         _ISSUE_UPSERT,
-                        (fp, title, [trace_id] if trace_id else [], SAMPLE_TRACES_CAP, trace_id, trace_id),
+                        (
+                            fp,
+                            title,
+                            [trace_id] if trace_id else [],
+                            SAMPLE_TRACES_CAP,
+                            trace_id,
+                            trace_id,
+                        ),
                     )
         except Exception:
             self.write_errors += len(rows)
@@ -124,9 +131,18 @@ class PGStore:
             attributes = orjson.dumps({"truncated": True, "bytes": len(attributes)})
         return (
             (
-                e["ts"], kind, e.get("level"), ctx.get("trace_id"), ctx.get("request_id"),
-                ctx.get("principal_id"), name, status, duration, fp,
-                e.get("message"), attributes.decode(),
+                e["ts"],
+                kind,
+                e.get("level"),
+                ctx.get("trace_id"),
+                ctx.get("request_id"),
+                ctx.get("principal_id"),
+                name,
+                status,
+                duration,
+                fp,
+                e.get("message"),
+                attributes.decode(),
             ),
             issue,
         )
