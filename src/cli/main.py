@@ -113,8 +113,15 @@ CONNECT_TIMEOUT_REMOTE_S = 10.0
 
 
 def _host(url: str) -> str:
-    """Host only — the URL carries the password, and this ends up on screen."""
-    return urlsplit(url).hostname or ""
+    """Host only — the URL carries the password, and this ends up on screen.
+
+    "" when the URL has no host or cannot be parsed at all (urlsplit raises on a
+    malformed IPv6 literal). doctor reports failures; it must never become one.
+    """
+    try:
+        return urlsplit(url).hostname or ""
+    except ValueError:
+        return ""
 
 
 def _is_local(host: str) -> bool:
@@ -133,6 +140,9 @@ def _unreachable_fix(url: str, service: str, exc: BaseException) -> str:
     the client library picks that class, so don't restate it in prose.
     """
     host = _host(url)
+    if not host:
+        # Blank or unparseable: no host to name, and docker cannot fix a bad URL.
+        return f"{service} URL is unusable — check it in .env ({type(exc).__name__})"
     if _is_local(host):
         return f"start {service} (docker compose up -d) — {type(exc).__name__}"
     return (
