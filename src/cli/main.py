@@ -5,6 +5,7 @@ import os
 import sys
 import traceback
 from pathlib import Path
+from urllib.parse import urlsplit
 
 import click
 import orjson
@@ -103,6 +104,42 @@ def cli():
 
 # ---------------- doctor ----------------
 
+# Where a service lives decides both how long it may take to answer and what fixes it.
+# A refused local port answers instantly; a managed host in another region pays DNS,
+# TLS, and auth first, so a local-sized budget reports a cold connection as an outage.
+LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "db", "postgres", "redis"})
+CONNECT_TIMEOUT_LOCAL_S = 3.0
+CONNECT_TIMEOUT_REMOTE_S = 10.0
+
+
+def _host(url: str) -> str:
+    """Host only — the URL carries the password, and this ends up on screen."""
+    return urlsplit(url).hostname or ""
+
+
+def _is_local(host: str) -> bool:
+    # Bare compose service names resolve on the docker network; treat them as nearby.
+    return host in LOCAL_HOSTS or host.endswith(".local")
+
+
+def _connect_timeout_s(url: str) -> float:
+    return CONNECT_TIMEOUT_LOCAL_S if _is_local(_host(url)) else CONNECT_TIMEOUT_REMOTE_S
+
+
+def _unreachable_fix(url: str, service: str, exc: BaseException) -> str:
+    """`docker compose up` only helps when the service is local. Say what will.
+
+    The exception type carries the distinction between a timeout and a refusal —
+    the client library picks that class, so don't restate it in prose.
+    """
+    host = _host(url)
+    if _is_local(host):
+        return f"start {service} (docker compose up -d) — {type(exc).__name__}"
+    return (
+        f"{service} at {host} unreachable — check network, DNS, and "
+        f"credentials in .env ({type(exc).__name__})"
+    )
+
 
 @cli.command()
 @click.option("-v", "--verbose", is_flag=True, help="full tracebacks, paged (less) on a TTY")
@@ -142,7 +179,7 @@ def doctor(verbose: bool):
         if not s.database_url:
             return {"db": (False, "set DATABASE_URL in .env", None)}
         try:
-            async with asyncio.timeout(3):
+            async with asyncio.timeout(_connect_timeout_s(s.database_url)):
                 async with get_engine().connect() as conn:
                     await conn.execute(text("SELECT 1"))
             results["db"] = (True, "", None)
@@ -161,29 +198,26 @@ def doctor(verbose: bool):
                 None,
             )
         except Exception as e:
-            results["db"] = (
-                False,
-                f"start postgres (docker compose up -d) — {type(e).__name__}",
-                e,
-            )
+            results["db"] = (False, _unreachable_fix(s.database_url, "postgres", e), e)
         return results
 
     for name, (passed, fix, exc) in _run(db_checks()).items():
         check(name, passed, fix, exc)
 
-    async def redis_check():
+    async def redis_check() -> BaseException | None:
         try:
             import src.common.redis as redis_mod
 
             redis_mod._client = None  # loop-bound; fresh client for this loop
-            async with asyncio.timeout(2):
+            async with asyncio.timeout(_connect_timeout_s(s.redis_url)):
                 await redis_mod.get_redis().ping()
-            return True, None
+            return None
         except Exception as e:
-            return False, e
+            return e
 
-    r_ok, r_exc = asyncio.run(redis_check())
-    check("redis", r_ok, "start redis (docker compose up -d)", r_exc)
+    r_exc = asyncio.run(redis_check())
+    fix = _unreachable_fix(s.redis_url, "redis", r_exc) if r_exc else ""
+    check("redis", r_exc is None, fix, r_exc)
 
     if s.database_url:
         try:
